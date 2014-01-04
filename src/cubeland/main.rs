@@ -10,7 +10,6 @@ use std::ptr;
 use std::str;
 use std::vec;
 use std::libc;
-use extra::time;
 
 use gl::types::*;
 
@@ -20,7 +19,6 @@ use cgmath::matrix::Mat4;
 use cgmath::matrix::ToMat4;
 use cgmath::vector::Vec4;
 use cgmath::angle::rad;
-use cgmath::projection;
 
 #[link(name="GLU")]
 extern {}
@@ -89,18 +87,50 @@ fn main() {
         let mut ebo = 0;
 
         let vertices : ~[GLfloat] = ~[
-            -1.0, -1.0,  1.0, 1.0,
-            1.0, -1.0,  1.0, 1.0,
-            -1.0,  1.0,  1.0, 1.0,
-            1.0,  1.0,  1.0, 1.0,
-            -1.0, -1.0, -1.0, 1.0,
-            1.0, -1.0, -1.0, 1.0,
-            -1.0,  1.0, -1.0, 1.0,
-            1.0,  1.0, -1.0, 1.0,
+            /* Front face */
+            -1.0, -1.0,  1.0, 1.0, /* bottom left */
+            1.0, -1.0,  1.0, 1.0,  /* bottom right */
+            -1.0,  1.0,  1.0, 1.0, /* top left */
+            1.0,  1.0,  1.0, 1.0,  /* top right */
+
+            /* Back face */
+            1.0, -1.0, -1.0, 1.0, /* bottom right */
+            -1.0, -1.0, -1.0, 1.0,  /* bottom left */
+            1.0, 1.0, -1.0, 1.0, /* top right */
+            -1.0, 1.0, -1.0, 1.0,  /* top left */
+
+            /* Right face */
+            1.0, -1.0, 1.0, 1.0, /* bottom front */
+            1.0, -1.0, -1.0, 1.0, /* bottom back */
+            1.0, 1.0, 1.0, 1.0, /* top front */
+            1.0, 1.0, -1.0, 1.0, /* top back */
+
+            /* Left face */
+            -1.0, -1.0, -1.0, 1.0, /* bottom back */
+            -1.0, -1.0, 1.0, 1.0, /* bottom front */
+            -1.0, 1.0, -1.0, 1.0, /* top back */
+            -1.0, 1.0, 1.0, 1.0, /* top front */
+
+            /* Top face */
+            -1.0, 1.0, 1.0, 1.0, /* front left */
+            1.0, 1.0, 1.0, 1.0, /* front right */
+            -1.0, 1.0, -1.0, 1.0, /* back left */
+            1.0, 1.0, -1.0, 1.0, /* back right */
+
+            /* Bottom face */
+            -1.0, -1.0, -1.0, 1.0, /* back left */
+            1.0, -1.0, -1.0, 1.0, /* back right */
+            -1.0, -1.0, 1.0, 1.0, /* front left */
+            1.0, -1.0, 1.0, 1.0, /* front right */
         ];
 
         let elements : ~[GLshort] = ~[
-            0, 1, 2, 3, 7, 1, 5, 4, 7, 6, 2, 4, 0, 1
+            0, 1, 2, 3, 2, 1,
+            4, 5, 6, 7, 6, 5,
+            8, 9, 10, 11, 10, 9,
+            12, 13, 14, 15, 14, 13,
+            16, 17, 18, 19, 18, 17,
+            20, 21, 22, 23, 22, 21,
         ];
 
         unsafe {
@@ -180,7 +210,7 @@ fn main() {
 
                 check_gl("after uniform transform");
 
-                gl::DrawElements(gl::TRIANGLE_STRIP, elements.len() as i32, gl::UNSIGNED_SHORT, ptr::null());
+                gl::DrawElements(gl::TRIANGLES, elements.len() as i32, gl::UNSIGNED_SHORT, ptr::null());
             }
 
             window.swap_buffers();
