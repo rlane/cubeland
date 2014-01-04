@@ -170,9 +170,10 @@ fn main() {
                 Vec4::<f32>::unit_y(),
                 Vec4::<f32>::unit_z(),
                 Vec4::<f32>::new(0.0f32, 0.0f32, -5.0f32, 1.0f32));
-            let rotation = Mat3::<f32>::from_angle_y(rad(angle)).to_mat4();
+            let rotation_x = Mat3::<f32>::from_angle_x(rad(0.5f32)).to_mat4();
+            let rotation_y = Mat3::<f32>::from_angle_y(rad(angle)).to_mat4();
             let projection = cgmath::projection::perspective(rad(1.57 as f32), (4.0/3.0) as f32, 0.1 as f32, 10.0 as f32);
-            let transform = projection.mul_m(&translation).mul_m(&rotation);
+            let transform = projection.mul_m(&translation).mul_m(&rotation_x).mul_m(&rotation_y);
 
             unsafe {
                 gl::UniformMatrix4fv(uniform_transform, 1, gl::FALSE, cast::transmute(&transform));
