@@ -29,22 +29,38 @@ static vertex_shader_src : &'static str = r"
 uniform mat4 transform;
 
 attribute vec4 position;
+attribute vec3 normal;
 
-varying vec3 color;
+varying vec4 frag_position;
+varying vec3 frag_normal;
 
 void main() {
-    gl_Position = transform * position;
-    color = (position.xyz + vec3(1.0, 1.0, 1.0)) * 0.5;
+    frag_position = position;
+    frag_normal = normal;
+    gl_Position = transform * frag_position;
 }
 ";
 
 static fragment_shader_src : &'static str = r"
 #version 110
 
-varying vec3 color;
+varying vec4 frag_position;
+varying vec3 frag_normal;
+
+const vec4 obj_diffuse = vec4(0.2, 0.6, 0.2, 1.0);
+
+const vec3 light_direction = vec3(0.408248, -0.816497, 0.408248);
+const vec4 light_diffuse = vec4(0.8, 0.8, 0.8, 0.0);
+const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
 
 void main() {
-    gl_FragColor = vec4(color, 1.0);
+    vec3 mv_light_direction = light_direction;
+
+    vec4 diffuse_factor
+        = max(-dot(frag_normal, mv_light_direction), 0.0) * light_diffuse;
+    vec4 ambient_diffuse_factor = diffuse_factor + light_ambient;
+
+    gl_FragColor = ambient_diffuse_factor * obj_diffuse;
 }
 ";
 
@@ -84,6 +100,7 @@ fn main() {
 
         let mut vao = 0;
         let mut vbo = 0;
+        let mut nbo = 0;
         let mut ebo = 0;
 
         let vertices : ~[GLfloat] = ~[
@@ -124,6 +141,44 @@ fn main() {
             1.0, -1.0, 1.0, 1.0, /* front right */
         ];
 
+        let normals : ~[GLfloat] = ~[
+            /* Front face */
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+
+            /* Back face */
+            0.0, 0.0, -1.0,
+            0.0, 0.0, -1.0,
+            0.0, 0.0, -1.0,
+            0.0, 0.0, -1.0,
+
+            /* Right face */
+            1.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+
+            /* Left face */
+            -1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0,
+
+            /* Top face */
+            0.0, 1.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 1.0, 0.0,
+
+            /* Bottom face */
+            0.0, -1.0, 0.0,
+            0.0, -1.0, 0.0,
+            0.0, -1.0, 0.0,
+            0.0, -1.0, 0.0,
+        ];
+
         let elements : ~[GLshort] = ~[
             0, 1, 2, 3, 2, 1,
             4, 5, 6, 7, 6, 5,
@@ -153,6 +208,16 @@ fn main() {
 
             check_gl("after vertex buffer");
 
+            // Create a Vertex Buffer Object and copy the normal data to it
+            gl::GenBuffers(1, &mut nbo);
+            gl::BindBuffer(gl::ARRAY_BUFFER, nbo);
+            gl::BufferData(gl::ARRAY_BUFFER,
+                           (normals.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
+                           cast::transmute(&normals[0]),
+                           gl::STATIC_DRAW);
+
+            check_gl("after normal buffer");
+
             // Create a Vertex Buffer Object and copy the element data to it
             gl::GenBuffers(1, &mut ebo);
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
@@ -168,11 +233,22 @@ fn main() {
 
             // Specify the layout of the vertex data
             let vert_attr = "position".with_c_str(|ptr| gl::GetAttribLocation(program, ptr));
+            assert!(vert_attr as u32 != gl::INVALID_VALUE);
+            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
             gl::EnableVertexAttribArray(vert_attr as GLuint);
             gl::VertexAttribPointer(vert_attr as GLuint, 4, gl::FLOAT,
                                     gl::FALSE as GLboolean, 0, ptr::null());
 
             check_gl("after vertex attrib pointer");
+
+            let normal_attr = "normal".with_c_str(|ptr| gl::GetAttribLocation(program, ptr));
+            assert!(normal_attr as u32 != gl::INVALID_VALUE);
+            gl::BindBuffer(gl::ARRAY_BUFFER, nbo);
+            gl::EnableVertexAttribArray(normal_attr as GLuint);
+            gl::VertexAttribPointer(normal_attr as GLuint, 3, gl::FLOAT,
+                                    gl::FALSE as GLboolean, 0, ptr::null());
+
+            check_gl("after normal attrib pointer");
         }
 
         check_gl("after buffers");
