@@ -4,6 +4,7 @@ extern mod extra;
 extern mod glfw;
 extern mod gl;
 extern mod cgmath;
+extern mod noise;
 
 use std::cast;
 use std::ptr;
@@ -19,6 +20,8 @@ use cgmath::matrix::Mat4;
 use cgmath::matrix::ToMat4;
 use cgmath::vector::Vec4;
 use cgmath::angle::rad;
+
+use noise::Perlin;
 
 #[link(name="GLU")]
 extern {}
@@ -63,6 +66,18 @@ void main() {
     gl_FragColor = ambient_diffuse_factor * obj_diffuse;
 }
 ";
+
+static CHUNK_SIZE: uint = 16;
+
+struct Chunk {
+    x: u64,
+    z: u64,
+    blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
+}
+
+struct Block {
+    color: Vec4<f32>,
+}
 
 #[start]
 fn start(argc: int, argv: **u8) -> int {
@@ -253,6 +268,8 @@ fn main() {
 
         check_gl("after buffers");
 
+        let chunk = chunk_gen(42, 0, 0);
+
         window.set_cursor_pos_callback(~CursorPosContext);
         window.set_key_callback(~KeyContext);
 
@@ -271,22 +288,43 @@ fn main() {
             let elapsed : u64 = extra::time::precise_time_ns() - start_time;
             let angle : f32 = elapsed as f32 / (1000*1000*1000) as f32;
 
-            let translation = Mat4::<f32>::from_cols(
+            let projection = cgmath::projection::perspective(rad(1.57 as f32), (4.0/3.0) as f32, 0.1 as f32, 100.0 as f32);
+
+            let camera_translation = Mat4::<f32>::from_cols(
                 Vec4::<f32>::unit_x(),
                 Vec4::<f32>::unit_y(),
                 Vec4::<f32>::unit_z(),
-                Vec4::<f32>::new(0.0f32, 0.0f32, -5.0f32, 1.0f32));
-            let rotation_x = Mat3::<f32>::from_angle_x(rad(0.5f32)).to_mat4();
-            let rotation_y = Mat3::<f32>::from_angle_y(rad(angle)).to_mat4();
-            let projection = cgmath::projection::perspective(rad(1.57 as f32), (4.0/3.0) as f32, 0.1 as f32, 10.0 as f32);
-            let transform = projection.mul_m(&translation).mul_m(&rotation_x).mul_m(&rotation_y);
+                Vec4::<f32>::new(0.0f32, 0.0f32, -30.0f32, 1.0f32));
+            let camera_rotation_x = Mat3::<f32>::from_angle_x(rad(0.5f32)).to_mat4();
+            let camera_rotation_y = Mat3::<f32>::from_angle_y(rad(angle)).to_mat4();
+            let camera = camera_translation.mul_m(&camera_rotation_x).mul_m(&camera_rotation_y);
 
-            unsafe {
-                gl::UniformMatrix4fv(uniform_transform, 1, gl::FALSE, cast::transmute(&transform));
+            for x in range(0, CHUNK_SIZE) {
+                for y in range(0, CHUNK_SIZE) {
+                    for z in range(0, CHUNK_SIZE) {
+                        let block = &chunk.blocks[x][y][z];
 
-                check_gl("after uniform transform");
+                        if (block.color.w < 0.5f32) {
+                            continue;
+                        }
 
-                gl::DrawElements(gl::TRIANGLES, elements.len() as i32, gl::UNSIGNED_SHORT, ptr::null());
+                        let block_transform = Mat4::<f32>::from_cols(
+                            Vec4::<f32>::unit_x(),
+                            Vec4::<f32>::unit_y(),
+                            Vec4::<f32>::unit_z(),
+                            Vec4::<f32>::new(x as f32, y as f32, z as f32, 1.0f32));
+
+                        let transform = projection.mul_m(&camera).mul_m(&block_transform);
+
+                        unsafe {
+                            gl::UniformMatrix4fv(uniform_transform, 1, gl::FALSE, cast::transmute(&transform));
+
+                            check_gl("after uniform transform");
+
+                            gl::DrawElements(gl::TRIANGLES, elements.len() as i32, gl::UNSIGNED_SHORT, ptr::null());
+                        }
+                    }
+                }
             }
 
             window.swap_buffers();
@@ -302,6 +340,26 @@ fn main() {
             }
         }
     }
+}
+
+fn chunk_gen(seed: u32, chunk_x: u64, chunk_z: u64) -> Chunk {
+    let def_block = Block { color: Vec4::<f32>::new(0.0, 0.0, 0.0, 0.0) };
+    let mut blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE] = [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE];
+
+    let perlin = Perlin::from_seed([seed as uint]);
+
+    for x in range(chunk_x, chunk_x + CHUNK_SIZE as u64) {
+        for z in range(chunk_z, chunk_z + CHUNK_SIZE as u64) {
+            let noise = perlin.gen([x as f64 * 0.1, z as f64 * 0.1]);
+            let height = ((noise + 1.0) * (CHUNK_SIZE as f64 / 2.0)) as uint;
+            for y in range(0, height) {
+                let color = Vec4::<f32>::new(0.2, 0.8, 0.2, 1.0);
+                blocks[x][y][z] = Block { color: color };
+            }
+        }
+    }
+
+    return Chunk { x: chunk_x, z: chunk_z, blocks: blocks };
 }
 
 extern "C" {
