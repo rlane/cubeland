@@ -69,14 +69,14 @@ void main() {
 }
 ";
 
-static WORLD_SIZE: uint = 16;
-static CHUNK_SIZE: uint = 16;
+static WORLD_SIZE: uint = 4;
+static CHUNK_SIZE: uint = 64;
 static WORLD_SEED: u32 = 42;
 
 struct Chunk {
     x: i64,
     z: i64,
-    blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
+    map: ~Map,
     vao: GLuint,
     vertex_buffer: GLuint,
     normal_buffer: GLuint,
@@ -86,6 +86,10 @@ struct Chunk {
 
 struct Block {
     color: Vec4<f32>,
+}
+
+struct Map {
+    blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
 }
 
 struct Face {
@@ -127,7 +131,7 @@ fn main() {
 
         gl::UseProgram(graphics_resources.program);
 
-        let mut chunks = ~[];
+        let mut chunks : ~[~Chunk] = ~[];
         for x in range(0, WORLD_SIZE) {
             for z in range(0, WORLD_SIZE) {
                 chunks.push(
@@ -254,16 +258,18 @@ fn main() {
     }
 }
 
-fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64) -> Chunk {
+fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64) -> ~Chunk {
     let def_block = Block { color: Vec4::<f32>::new(0.0, 0.0, 0.0, 0.0) };
-    let mut blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE] = [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE];
+    let mut map = ~Map {
+        blocks: [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
+    };
 
     let block_exists = |x: int, y: int, z: int| -> bool {
         if x < 0 || x >= CHUNK_SIZE as int || y < 0 || y >= CHUNK_SIZE as int || z < 0 || z >= CHUNK_SIZE as int {
             return false;
         }
 
-        blocks[x][y][z].color.w == 1.0f32
+        map.blocks[x][y][z].color.w == 1.0f32
     };
 
     let perlin = Perlin::from_seed([seed as uint]);
@@ -274,10 +280,10 @@ fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64) -> 
                 (chunk_x + block_x as i64) as f64 * 0.1,
                 (chunk_z + block_z as i64) as f64 * 0.1
             ]);
-            let height = ((noise + 1.0) * (CHUNK_SIZE as f64 / 2.0)) as uint;
+            let height = ((noise + 1.0) * (CHUNK_SIZE as f64 / 8.0)) as uint;
             for y in range(0, height) {
                 let color = Vec4::<f32>::new(0.2, 0.8, 0.2, 1.0);
-                blocks[block_x][y][block_z] = Block { color: color };
+                map.blocks[block_x][y][block_z] = Block { color: color };
             }
         }
     }
@@ -291,7 +297,7 @@ fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64) -> 
     for x in range(0, CHUNK_SIZE) {
         for y in range(0, CHUNK_SIZE) {
             for z in range(0, CHUNK_SIZE) {
-                let block = &blocks[x][y][z];
+                let block = &map.blocks[x][y][z];
 
                 if (block.color.w == 0.0f32) {
                     continue;
@@ -372,10 +378,10 @@ fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64) -> 
 
     gl::BindVertexArray(0);
 
-    return Chunk {
+    return ~Chunk {
         x: chunk_x,
         z: chunk_z,
-        blocks: blocks,
+        map: map,
         vao: vao,
         vertex_buffer: vertex_buffer,
         normal_buffer: normal_buffer,
