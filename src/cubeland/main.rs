@@ -69,7 +69,7 @@ void main() {
 }
 ";
 
-static WORLD_SIZE: uint = 4;
+static WORLD_SIZE: uint = 16;
 static CHUNK_SIZE: uint = 16;
 static WORLD_SEED: u32 = 42;
 
@@ -205,7 +205,7 @@ fn main() {
             let projection = cgmath::projection::perspective(
                 rad(1.57f32),
                 window_width as f32 / window_height as f32,
-                0.1f32, 100.0f32);
+                0.1f32, 1000.0f32);
 
             let camera_translation = Mat4::<f32>::from_cols(
                 Vec4::<f32>::unit_x(),
