@@ -94,7 +94,7 @@ fn main() {
         let window = glfw::Window::create(window_width, window_height, "Hello, I am a window.", glfw::Windowed)
             .expect("Failed to create GLFW window.");
 
-        //window.set_cursor_mode(glfw::CursorDisabled);
+        window.set_cursor_mode(glfw::CursorDisabled);
         window.make_context_current();
 
         gl::load_with(glfw::get_proc_address);
@@ -270,7 +270,6 @@ fn main() {
 
         let chunk = chunk_gen(42, 0, 0);
 
-        window.set_cursor_pos_callback(~CursorPosContext);
         window.set_key_callback(~KeyContext);
 
         let start_time = extra::time::precise_time_ns();
@@ -279,6 +278,10 @@ fn main() {
 
         while !window.should_close() {
             glfw::poll_events();
+
+            let (cursor_x, cursor_y) = window.get_cursor_pos();
+            let camera_angle_y = ((cursor_x * 0.0001) % 1.0) * std::f64::consts::PI * 2.0;
+            let camera_angle_x = ((cursor_y * 0.0001) % 1.0) * std::f64::consts::PI * 2.0;
 
             gl::Viewport(0,0, window_width as GLint, window_height as GLint);
 
@@ -295,9 +298,9 @@ fn main() {
                 Vec4::<f32>::unit_y(),
                 Vec4::<f32>::unit_z(),
                 Vec4::<f32>::new(0.0f32, 0.0f32, -30.0f32, 1.0f32));
-            let camera_rotation_x = Mat3::<f32>::from_angle_x(rad(0.5f32)).to_mat4();
-            let camera_rotation_y = Mat3::<f32>::from_angle_y(rad(angle)).to_mat4();
-            let camera = camera_translation.mul_m(&camera_rotation_x).mul_m(&camera_rotation_y);
+            let camera_rotation_x = Mat3::<f32>::from_angle_x(rad(camera_angle_x as f32)).to_mat4();
+            let camera_rotation_y = Mat3::<f32>::from_angle_y(rad(camera_angle_y as f32)).to_mat4();
+            let camera = camera_rotation_x.mul_m(&camera_rotation_y).mul_m(&camera_translation);
 
             for x in range(0, CHUNK_SIZE) {
                 for y in range(0, CHUNK_SIZE) {
@@ -427,12 +430,6 @@ struct ErrorContext;
 impl glfw::ErrorCallback for ErrorContext {
     fn call(&self, _: glfw::Error, description: ~str) {
         fail!("GLFW Error: {:s}", description);
-    }
-}
-
-struct CursorPosContext;
-impl glfw::CursorPosCallback for CursorPosContext {
-    fn call(&self, _: &glfw::Window, _: f64, _: f64) {
     }
 }
 
