@@ -81,6 +81,12 @@ struct Block {
     color: Vec4<f32>,
 }
 
+struct GraphicsResources {
+    program: GLuint,
+    vao: GLuint,
+    uniform_transform: GLint,
+}
+
 #[start]
 fn start(argc: int, argv: **u8) -> int {
     std::rt::start_on_main_thread(argc, argv, main)
@@ -101,174 +107,15 @@ fn main() {
 
         gl::load_with(glfw::get_proc_address);
 
-        let vs = compile_shader(vertex_shader_src.as_bytes(), gl::VERTEX_SHADER);
-        let fs = compile_shader(fragment_shader_src.as_bytes(), gl::FRAGMENT_SHADER);
-        let program = link_program(vs, fs);
+        gl::Enable(gl::DEPTH_TEST);
+        gl::Enable(gl::CULL_FACE);
 
-        check_gl("after link");
+        glfw::set_swap_interval(1);
 
-        let mut uniform_transform;
+        let graphics_resources = load_graphics_resources();
 
-        unsafe {
-            uniform_transform = "transform".with_c_str(|ptr| gl::GetUniformLocation(program, ptr));
-        }
-
-        check_gl("after uniform transform location");
-
-        let mut vao = 0;
-        let mut vbo = 0;
-        let mut nbo = 0;
-        let mut ebo = 0;
-
-        let vertices : ~[GLfloat] = ~[
-            /* Front face */
-            -1.0, -1.0,  1.0, 1.0, /* bottom left */
-            1.0, -1.0,  1.0, 1.0,  /* bottom right */
-            -1.0,  1.0,  1.0, 1.0, /* top left */
-            1.0,  1.0,  1.0, 1.0,  /* top right */
-
-            /* Back face */
-            1.0, -1.0, -1.0, 1.0, /* bottom right */
-            -1.0, -1.0, -1.0, 1.0,  /* bottom left */
-            1.0, 1.0, -1.0, 1.0, /* top right */
-            -1.0, 1.0, -1.0, 1.0,  /* top left */
-
-            /* Right face */
-            1.0, -1.0, 1.0, 1.0, /* bottom front */
-            1.0, -1.0, -1.0, 1.0, /* bottom back */
-            1.0, 1.0, 1.0, 1.0, /* top front */
-            1.0, 1.0, -1.0, 1.0, /* top back */
-
-            /* Left face */
-            -1.0, -1.0, -1.0, 1.0, /* bottom back */
-            -1.0, -1.0, 1.0, 1.0, /* bottom front */
-            -1.0, 1.0, -1.0, 1.0, /* top back */
-            -1.0, 1.0, 1.0, 1.0, /* top front */
-
-            /* Top face */
-            -1.0, 1.0, 1.0, 1.0, /* front left */
-            1.0, 1.0, 1.0, 1.0, /* front right */
-            -1.0, 1.0, -1.0, 1.0, /* back left */
-            1.0, 1.0, -1.0, 1.0, /* back right */
-
-            /* Bottom face */
-            -1.0, -1.0, -1.0, 1.0, /* back left */
-            1.0, -1.0, -1.0, 1.0, /* back right */
-            -1.0, -1.0, 1.0, 1.0, /* front left */
-            1.0, -1.0, 1.0, 1.0, /* front right */
-        ];
-
-        let normals : ~[GLfloat] = ~[
-            /* Front face */
-            0.0, 0.0, 1.0,
-            0.0, 0.0, 1.0,
-            0.0, 0.0, 1.0,
-            0.0, 0.0, 1.0,
-
-            /* Back face */
-            0.0, 0.0, -1.0,
-            0.0, 0.0, -1.0,
-            0.0, 0.0, -1.0,
-            0.0, 0.0, -1.0,
-
-            /* Right face */
-            1.0, 0.0, 0.0,
-            1.0, 0.0, 0.0,
-            1.0, 0.0, 0.0,
-            1.0, 0.0, 0.0,
-
-            /* Left face */
-            -1.0, 0.0, 0.0,
-            -1.0, 0.0, 0.0,
-            -1.0, 0.0, 0.0,
-            -1.0, 0.0, 0.0,
-
-            /* Top face */
-            0.0, 1.0, 0.0,
-            0.0, 1.0, 0.0,
-            0.0, 1.0, 0.0,
-            0.0, 1.0, 0.0,
-
-            /* Bottom face */
-            0.0, -1.0, 0.0,
-            0.0, -1.0, 0.0,
-            0.0, -1.0, 0.0,
-            0.0, -1.0, 0.0,
-        ];
-
-        let elements : ~[GLshort] = ~[
-            0, 1, 2, 3, 2, 1,
-            4, 5, 6, 7, 6, 5,
-            8, 9, 10, 11, 10, 9,
-            12, 13, 14, 15, 14, 13,
-            16, 17, 18, 19, 18, 17,
-            20, 21, 22, 23, 22, 21,
-        ];
-
-        unsafe {
-            gl::Enable(gl::DEPTH_TEST);
-            gl::Enable(gl::CULL_FACE);
-
-            glfw::set_swap_interval(1);
-
-            // Create Vertex Array Object
-            gl::GenVertexArrays(1, &mut vao);
-            gl::BindVertexArray(vao);
-
-            // Create a Vertex Buffer Object and copy the vertex data to it
-            gl::GenBuffers(1, &mut vbo);
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-            gl::BufferData(gl::ARRAY_BUFFER,
-                           (vertices.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
-                           cast::transmute(&vertices[0]),
-                           gl::STATIC_DRAW);
-
-            check_gl("after vertex buffer");
-
-            // Create a Vertex Buffer Object and copy the normal data to it
-            gl::GenBuffers(1, &mut nbo);
-            gl::BindBuffer(gl::ARRAY_BUFFER, nbo);
-            gl::BufferData(gl::ARRAY_BUFFER,
-                           (normals.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
-                           cast::transmute(&normals[0]),
-                           gl::STATIC_DRAW);
-
-            check_gl("after normal buffer");
-
-            // Create a Vertex Buffer Object and copy the element data to it
-            gl::GenBuffers(1, &mut ebo);
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
-            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
-                           (elements.len() * std::mem::size_of::<GLshort>()) as GLsizeiptr,
-                           cast::transmute(&elements[0]),
-                           gl::STATIC_DRAW);
-
-            check_gl("after element buffer");
-
-            // Use shader program
-            gl::UseProgram(program);
-
-            // Specify the layout of the vertex data
-            let vert_attr = "position".with_c_str(|ptr| gl::GetAttribLocation(program, ptr));
-            assert!(vert_attr as u32 != gl::INVALID_VALUE);
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-            gl::EnableVertexAttribArray(vert_attr as GLuint);
-            gl::VertexAttribPointer(vert_attr as GLuint, 4, gl::FLOAT,
-                                    gl::FALSE as GLboolean, 0, ptr::null());
-
-            check_gl("after vertex attrib pointer");
-
-            let normal_attr = "normal".with_c_str(|ptr| gl::GetAttribLocation(program, ptr));
-            assert!(normal_attr as u32 != gl::INVALID_VALUE);
-            gl::BindBuffer(gl::ARRAY_BUFFER, nbo);
-            gl::EnableVertexAttribArray(normal_attr as GLuint);
-            gl::VertexAttribPointer(normal_attr as GLuint, 3, gl::FLOAT,
-                                    gl::FALSE as GLboolean, 0, ptr::null());
-
-            check_gl("after normal attrib pointer");
-        }
-
-        check_gl("after buffers");
+        gl::UseProgram(graphics_resources.program);
+        gl::BindVertexArray(graphics_resources.vao);
 
         let chunk = chunk_gen(42, 0, 0);
 
@@ -357,11 +204,8 @@ fn main() {
                         let transform = projection.mul_m(&camera).mul_m(&block_transform);
 
                         unsafe {
-                            gl::UniformMatrix4fv(uniform_transform, 1, gl::FALSE, cast::transmute(&transform));
-
-                            check_gl("after uniform transform");
-
-                            gl::DrawElements(gl::TRIANGLES, elements.len() as i32, gl::UNSIGNED_SHORT, ptr::null());
+                            gl::UniformMatrix4fv(graphics_resources.uniform_transform, 1, gl::FALSE, cast::transmute(&transform));
+                            gl::DrawElements(gl::TRIANGLES, cube_elements.len() as i32, gl::UNSIGNED_SHORT, ptr::null());
                         }
                     }
                 }
@@ -400,6 +244,162 @@ fn chunk_gen(seed: u32, chunk_x: u64, chunk_z: u64) -> Chunk {
     }
 
     return Chunk { x: chunk_x, z: chunk_z, blocks: blocks };
+}
+
+static cube_vertices : [GLfloat, ..96] = [
+    /* Front face */
+    -1.0, -1.0,  1.0, 1.0, /* bottom left */
+    1.0, -1.0,  1.0, 1.0,  /* bottom right */
+    -1.0,  1.0,  1.0, 1.0, /* top left */
+    1.0,  1.0,  1.0, 1.0,  /* top right */
+
+    /* Back face */
+    1.0, -1.0, -1.0, 1.0, /* bottom right */
+    -1.0, -1.0, -1.0, 1.0,  /* bottom left */
+    1.0, 1.0, -1.0, 1.0, /* top right */
+    -1.0, 1.0, -1.0, 1.0,  /* top left */
+
+    /* Right face */
+    1.0, -1.0, 1.0, 1.0, /* bottom front */
+    1.0, -1.0, -1.0, 1.0, /* bottom back */
+    1.0, 1.0, 1.0, 1.0, /* top front */
+    1.0, 1.0, -1.0, 1.0, /* top back */
+
+    /* Left face */
+    -1.0, -1.0, -1.0, 1.0, /* bottom back */
+    -1.0, -1.0, 1.0, 1.0, /* bottom front */
+    -1.0, 1.0, -1.0, 1.0, /* top back */
+    -1.0, 1.0, 1.0, 1.0, /* top front */
+
+    /* Top face */
+    -1.0, 1.0, 1.0, 1.0, /* front left */
+    1.0, 1.0, 1.0, 1.0, /* front right */
+    -1.0, 1.0, -1.0, 1.0, /* back left */
+    1.0, 1.0, -1.0, 1.0, /* back right */
+
+    /* Bottom face */
+    -1.0, -1.0, -1.0, 1.0, /* back left */
+    1.0, -1.0, -1.0, 1.0, /* back right */
+    -1.0, -1.0, 1.0, 1.0, /* front left */
+    1.0, -1.0, 1.0, 1.0, /* front right */
+];
+
+static cube_normals : [GLfloat, ..72] = [
+    /* Front face */
+    0.0, 0.0, 1.0,
+    0.0, 0.0, 1.0,
+    0.0, 0.0, 1.0,
+    0.0, 0.0, 1.0,
+
+    /* Back face */
+    0.0, 0.0, -1.0,
+    0.0, 0.0, -1.0,
+    0.0, 0.0, -1.0,
+    0.0, 0.0, -1.0,
+
+    /* Right face */
+    1.0, 0.0, 0.0,
+    1.0, 0.0, 0.0,
+    1.0, 0.0, 0.0,
+    1.0, 0.0, 0.0,
+
+    /* Left face */
+    -1.0, 0.0, 0.0,
+    -1.0, 0.0, 0.0,
+    -1.0, 0.0, 0.0,
+    -1.0, 0.0, 0.0,
+
+    /* Top face */
+    0.0, 1.0, 0.0,
+    0.0, 1.0, 0.0,
+    0.0, 1.0, 0.0,
+    0.0, 1.0, 0.0,
+
+    /* Bottom face */
+    0.0, -1.0, 0.0,
+    0.0, -1.0, 0.0,
+    0.0, -1.0, 0.0,
+    0.0, -1.0, 0.0,
+];
+
+static cube_elements : [GLshort, ..36] = [
+    0, 1, 2, 3, 2, 1,
+    4, 5, 6, 7, 6, 5,
+    8, 9, 10, 11, 10, 9,
+    12, 13, 14, 15, 14, 13,
+    16, 17, 18, 19, 18, 17,
+    20, 21, 22, 23, 22, 21,
+];
+
+fn load_graphics_resources() -> GraphicsResources {
+    let vs = compile_shader(vertex_shader_src.as_bytes(), gl::VERTEX_SHADER);
+    let fs = compile_shader(fragment_shader_src.as_bytes(), gl::FRAGMENT_SHADER);
+    let program = link_program(vs, fs);
+
+    let uniform_transform = unsafe { "transform".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
+
+    let mut vao = 0;
+    let mut vertex_buffer = 0;
+    let mut normal_buffer = 0;
+    let mut element_buffer = 0;
+
+    unsafe {
+        // Create Vertex Array Object
+        gl::GenVertexArrays(1, &mut vao);
+        gl::BindVertexArray(vao);
+
+        // Create a Vertex Buffer Object and copy the vertex data to it
+        gl::GenBuffers(1, &mut vertex_buffer);
+        gl::BindBuffer(gl::ARRAY_BUFFER, vertex_buffer);
+        gl::BufferData(gl::ARRAY_BUFFER,
+                        (cube_vertices.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
+                        cast::transmute(&cube_vertices[0]),
+                        gl::STATIC_DRAW);
+
+        // Create a Vertex Buffer Object and copy the normal data to it
+        gl::GenBuffers(1, &mut normal_buffer);
+        gl::BindBuffer(gl::ARRAY_BUFFER, normal_buffer);
+        gl::BufferData(gl::ARRAY_BUFFER,
+                        (cube_normals.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
+                        cast::transmute(&cube_normals[0]),
+                        gl::STATIC_DRAW);
+
+        // Create a Vertex Buffer Object and copy the element data to it
+        gl::GenBuffers(1, &mut element_buffer);
+        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, element_buffer);
+        gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
+                        (cube_elements.len() * std::mem::size_of::<GLshort>()) as GLsizeiptr,
+                        cast::transmute(&cube_elements[0]),
+                        gl::STATIC_DRAW);
+
+        gl::UseProgram(program);
+
+        // Specify the layout of the vertex data
+        let vert_attr = "position".with_c_str(|ptr| gl::GetAttribLocation(program, ptr));
+        assert!(vert_attr as u32 != gl::INVALID_VALUE);
+        gl::BindBuffer(gl::ARRAY_BUFFER, vertex_buffer);
+        gl::EnableVertexAttribArray(vert_attr as GLuint);
+        gl::VertexAttribPointer(vert_attr as GLuint, 4, gl::FLOAT,
+                                gl::FALSE as GLboolean, 0, ptr::null());
+
+        let normal_attr = "normal".with_c_str(|ptr| gl::GetAttribLocation(program, ptr));
+        assert!(normal_attr as u32 != gl::INVALID_VALUE);
+        gl::BindBuffer(gl::ARRAY_BUFFER, normal_buffer);
+        gl::EnableVertexAttribArray(normal_attr as GLuint);
+        gl::VertexAttribPointer(normal_attr as GLuint, 3, gl::FLOAT,
+                                gl::FALSE as GLboolean, 0, ptr::null());
+    }
+
+    gl::UseProgram(0);
+
+    gl::BindVertexArray(0);
+
+    return GraphicsResources {
+        program: program,
+        vao: vao,
+        uniform_transform: uniform_transform,
+    };
+
 }
 
 extern "C" {
