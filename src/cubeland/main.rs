@@ -72,8 +72,8 @@ void main() {
 static CHUNK_SIZE: uint = 16;
 
 struct Chunk {
-    x: u64,
-    z: u64,
+    x: i64,
+    z: i64,
     blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
 }
 
@@ -117,7 +117,12 @@ fn main() {
         gl::UseProgram(graphics_resources.program);
         gl::BindVertexArray(graphics_resources.vao);
 
-        let chunk = chunk_gen(42, 0, 0);
+        let chunks = ~[
+            chunk_gen(42, 0, 0),
+            chunk_gen(42, -16, 0),
+            chunk_gen(42, 0, -16),
+            chunk_gen(42, -16, -16),
+        ];
 
         window.set_key_callback(~KeyContext);
 
@@ -128,7 +133,7 @@ fn main() {
         let mut last_frame_time = start_time;
         let mut num_frames = 0;
 
-        let mut camera_position = Vec3::<f32>::new(0.0f32, 0.0f32, 30.0f32);
+        let mut camera_position = Vec3::<f32>::new(0.0f32, 20.0f32, 40.0f32);
 
         while !window.should_close() {
             glfw::poll_events();
@@ -202,26 +207,34 @@ fn main() {
             let absolute_camera_velocity = inv_camera_rotation.mul_v(&camera_velocity);
             camera_position.add_self_v(&absolute_camera_velocity);
 
-            for x in range(0, CHUNK_SIZE) {
-                for y in range(0, CHUNK_SIZE) {
-                    for z in range(0, CHUNK_SIZE) {
-                        let block = &chunk.blocks[x][y][z];
+            for chunk in chunks.iter() {
+                let chunk_transform = Mat4::<f32>::from_cols(
+                    Vec4::<f32>::unit_x(),
+                    Vec4::<f32>::unit_y(),
+                    Vec4::<f32>::unit_z(),
+                    Vec4::<f32>::new(chunk.x as f32 * 1.1f32, 0.0f32, chunk.z as f32 * 1.1f32, 1.0f32));
 
-                        if (block.color.w < 0.5f32) {
-                            continue;
-                        }
+                for x in range(0, CHUNK_SIZE) {
+                    for y in range(0, CHUNK_SIZE) {
+                        for z in range(0, CHUNK_SIZE) {
+                            let block = &chunk.blocks[x][y][z];
 
-                        let block_transform = Mat4::<f32>::from_cols(
-                            Vec4::<f32>::unit_x(),
-                            Vec4::<f32>::unit_y(),
-                            Vec4::<f32>::unit_z(),
-                            Vec4::<f32>::new(x as f32, y as f32, z as f32, 1.0f32));
+                            if (block.color.w < 0.5f32) {
+                                continue;
+                            }
 
-                        let transform = projection.mul_m(&camera).mul_m(&block_transform);
+                            let block_transform = Mat4::<f32>::from_cols(
+                                Vec4::<f32>::unit_x(),
+                                Vec4::<f32>::unit_y(),
+                                Vec4::<f32>::unit_z(),
+                                Vec4::<f32>::new(x as f32, y as f32, z as f32, 1.0f32));
 
-                        unsafe {
-                            gl::UniformMatrix4fv(graphics_resources.uniform_transform, 1, gl::FALSE, cast::transmute(&transform));
-                            gl::DrawElements(gl::TRIANGLES, cube_elements.len() as i32, gl::UNSIGNED_SHORT, ptr::null());
+                            let transform = projection.mul_m(&camera).mul_m(&chunk_transform).mul_m(&block_transform);
+
+                            unsafe {
+                                gl::UniformMatrix4fv(graphics_resources.uniform_transform, 1, gl::FALSE, cast::transmute(&transform));
+                                gl::DrawElements(gl::TRIANGLES, cube_elements.len() as i32, gl::UNSIGNED_SHORT, ptr::null());
+                            }
                         }
                     }
                 }
@@ -242,19 +255,22 @@ fn main() {
     }
 }
 
-fn chunk_gen(seed: u32, chunk_x: u64, chunk_z: u64) -> Chunk {
+fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64) -> Chunk {
     let def_block = Block { color: Vec4::<f32>::new(0.0, 0.0, 0.0, 0.0) };
     let mut blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE] = [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE];
 
     let perlin = Perlin::from_seed([seed as uint]);
 
-    for x in range(chunk_x, chunk_x + CHUNK_SIZE as u64) {
-        for z in range(chunk_z, chunk_z + CHUNK_SIZE as u64) {
-            let noise = perlin.gen([x as f64 * 0.1, z as f64 * 0.1]);
+    for block_x in range(0, CHUNK_SIZE) {
+        for block_z in range(0, CHUNK_SIZE) {
+            let noise = perlin.gen([
+                (chunk_x + block_x as i64) as f64 * 0.1,
+                (chunk_z + block_z as i64) as f64 * 0.1
+            ]);
             let height = ((noise + 1.0) * (CHUNK_SIZE as f64 / 2.0)) as uint;
             for y in range(0, height) {
                 let color = Vec4::<f32>::new(0.2, 0.8, 0.2, 1.0);
-                blocks[x][y][z] = Block { color: color };
+                blocks[block_x][y][block_z] = Block { color: color };
             }
         }
     }
