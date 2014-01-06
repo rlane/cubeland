@@ -18,6 +18,8 @@ use cgmath::matrix::Matrix;
 use cgmath::matrix::Mat3;
 use cgmath::matrix::Mat4;
 use cgmath::matrix::ToMat4;
+use cgmath::vector::Vector;
+use cgmath::vector::Vec3;
 use cgmath::vector::Vec4;
 use cgmath::angle::rad;
 
@@ -276,20 +278,51 @@ fn main() {
         let mut last_frame_time = start_time;
         let mut num_frames = 0;
 
+        let mut camera_position = Vec3::<f32>::new(0.0f32, 0.0f32, 30.0f32);
+
         while !window.should_close() {
             glfw::poll_events();
 
             let (cursor_x, cursor_y) = window.get_cursor_pos();
-            let camera_angle_y = ((cursor_x * 0.0001) % 1.0) * std::f64::consts::PI * 2.0;
-            let camera_angle_x = ((cursor_y * 0.0001) % 1.0) * std::f64::consts::PI * 2.0;
+            let camera_angle_y = ((cursor_x * 0.0005) % 1.0) * std::f64::consts::PI * 2.0;
+            let camera_angle_x = ((cursor_y * 0.0005) % 1.0) * std::f64::consts::PI * 2.0;
+
+            let mut camera_velocity = Vec3::<f32>::new(0.0f32, 0.0f32, 0.0f32);
+
+            match window.get_key(glfw::KeySpace) {
+                glfw::Press => { camera_velocity.y += 1.0f32 }
+                _ => {}
+            }
+
+            match window.get_key(glfw::KeyLeftControl) {
+                glfw::Press => { camera_velocity.y += -1.0f32 }
+                _ => {}
+            }
+
+            match window.get_key(glfw::KeyS) {
+                glfw::Press => { camera_velocity.z += 1.0f32 }
+                _ => {}
+            }
+
+            match window.get_key(glfw::KeyW) {
+                glfw::Press => { camera_velocity.z += -1.0f32 }
+                _ => {}
+            }
+
+            match window.get_key(glfw::KeyD) {
+                glfw::Press => { camera_velocity.x += 1.0f32 }
+                _ => {}
+            }
+
+            match window.get_key(glfw::KeyA) {
+                glfw::Press => { camera_velocity.x += -1.0f32 }
+                _ => {}
+            }
 
             gl::Viewport(0,0, window_width as GLint, window_height as GLint);
 
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-
-            let elapsed : u64 = extra::time::precise_time_ns() - start_time;
-            let angle : f32 = elapsed as f32 / (1000*1000*1000) as f32;
 
             let projection = cgmath::projection::perspective(rad(1.57 as f32), (4.0/3.0) as f32, 0.1 as f32, 100.0 as f32);
 
@@ -297,10 +330,14 @@ fn main() {
                 Vec4::<f32>::unit_x(),
                 Vec4::<f32>::unit_y(),
                 Vec4::<f32>::unit_z(),
-                Vec4::<f32>::new(0.0f32, 0.0f32, -30.0f32, 1.0f32));
+                camera_position.mul_s(-1.0f32).extend(1.0f32));
             let camera_rotation_x = Mat3::<f32>::from_angle_x(rad(camera_angle_x as f32)).to_mat4();
             let camera_rotation_y = Mat3::<f32>::from_angle_y(rad(camera_angle_y as f32)).to_mat4();
             let camera = camera_rotation_x.mul_m(&camera_rotation_y).mul_m(&camera_translation);
+
+            let inv_camera_rotation = Mat3::<f32>::from_euler(rad(-camera_angle_x as f32), rad(-camera_angle_y as f32), rad(0.0f32));
+            let absolute_camera_velocity = inv_camera_rotation.mul_v(&camera_velocity);
+            camera_position.add_self_v(&absolute_camera_velocity);
 
             for x in range(0, CHUNK_SIZE) {
                 for y in range(0, CHUNK_SIZE) {
@@ -438,7 +475,7 @@ impl glfw::KeyCallback for KeyContext {
     fn call(&self, window: &glfw::Window, key: glfw::Key, _: libc::c_int, action: glfw::Action, _: glfw::Modifiers) {
         match (action, key) {
             (glfw::Press, glfw::KeyEscape) => window.set_should_close(true),
-            _ => println!("unexpected key callback for action {:?} key {:?}", action, key)
+            _ => {}
         }
     }
 }
