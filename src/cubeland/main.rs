@@ -69,7 +69,9 @@ void main() {
 }
 ";
 
+static WORLD_SIZE: uint = 4;
 static CHUNK_SIZE: uint = 16;
+static WORLD_SEED: u32 = 42;
 
 struct Chunk {
     x: i64,
@@ -120,12 +122,15 @@ fn main() {
 
         gl::UseProgram(graphics_resources.program);
 
-        let chunks = ~[
-            chunk_gen(&graphics_resources, 42, 0, 0),
-            chunk_gen(&graphics_resources, 42, -16, 0),
-            chunk_gen(&graphics_resources, 42, 0, -16),
-            chunk_gen(&graphics_resources, 42, -16, -16),
-        ];
+        let mut chunks = ~[];
+        for x in range(0, WORLD_SIZE) {
+            for z in range(0, WORLD_SIZE) {
+                chunks.push(
+                    chunk_gen(&graphics_resources, WORLD_SEED,
+                              ((x as int - WORLD_SIZE as int/2) * CHUNK_SIZE as int) as i64,
+                              ((z as int - WORLD_SIZE as int/2) * CHUNK_SIZE as int) as i64));
+            }
+        }
 
         window.set_key_callback(~KeyContext);
 
