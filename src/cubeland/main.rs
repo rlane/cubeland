@@ -95,10 +95,10 @@ fn start(argc: int, argv: **u8) -> int {
 fn main() {
    glfw::set_error_callback(~ErrorContext);
 
-   let window_width = 800;
-   let window_height = 600;
-
     do glfw::start {
+        let mut window_width = 800;
+        let mut window_height = 600;
+
         let window = glfw::Window::create(window_width, window_height, "Hello, I am a window.", glfw::Windowed)
             .expect("Failed to create GLFW window.");
 
@@ -121,6 +121,9 @@ fn main() {
 
         window.set_key_callback(~KeyContext);
 
+        let (fb_size_port, fb_size_chan): (Port<(u32,u32)>, Chan<(u32,u32)>) = std::comm::Chan::new();
+        window.set_framebuffer_size_callback(~FramebufferSizeContext { chan: fb_size_chan });
+
         let start_time = extra::time::precise_time_ns();
         let mut last_frame_time = start_time;
         let mut num_frames = 0;
@@ -129,6 +132,16 @@ fn main() {
 
         while !window.should_close() {
             glfw::poll_events();
+
+            loop {
+                match fb_size_port.try_recv() {
+                    Some((w,h)) => {
+                        window_width = w;
+                        window_height = h;
+                    }
+                    None => break
+                }
+            }
 
             let (cursor_x, cursor_y) = window.get_cursor_pos();
             let camera_angle_y = ((cursor_x * 0.0005) % 1.0) * std::f64::consts::PI * 2.0;
@@ -171,7 +184,10 @@ fn main() {
             gl::ClearColor(0.0, 0.0, 0.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
-            let projection = cgmath::projection::perspective(rad(1.57 as f32), (4.0/3.0) as f32, 0.1 as f32, 100.0 as f32);
+            let projection = cgmath::projection::perspective(
+                rad(1.57f32),
+                window_width as f32 / window_height as f32,
+                0.1f32, 100.0f32);
 
             let camera_translation = Mat4::<f32>::from_cols(
                 Vec4::<f32>::unit_x(),
@@ -477,5 +493,14 @@ impl glfw::KeyCallback for KeyContext {
             (glfw::Press, glfw::KeyEscape) => window.set_should_close(true),
             _ => {}
         }
+    }
+}
+
+struct FramebufferSizeContext {
+    chan: Chan<(u32,u32)>
+}
+impl glfw::FramebufferSizeCallback for FramebufferSizeContext {
+    fn call(&self, _: &glfw::Window, width: i32, height: i32) {
+        self.chan.send((width as u32,height as u32));
     }
 }
