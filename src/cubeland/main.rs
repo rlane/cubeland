@@ -88,6 +88,11 @@ struct Block {
     color: Vec4<f32>,
 }
 
+struct Face {
+    normal: Vec3<f32>,
+    vertices: [Vec3<f32>, ..4],
+}
+
 struct GraphicsResources {
     program: GLuint,
     uniform_transform: GLint,
@@ -286,19 +291,18 @@ fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64) -> 
 
                 let block_position = Vec3 { x: x as f32, y: y as f32, z: z as f32 };
 
-                for v in cube_vertices.iter() {
-                    vertices.push(v.mul_s(1.0f32).add_v(&block_position));
-                }
+                for face in faces.iter() {
+                    for v in face.vertices.iter() {
+                        vertices.push(v.add_v(&block_position));
+                        normals.push(face.normal);
+                    }
 
-                for v in cube_normals.iter() {
-                    normals.push(*v);
-                }
+                    for e in face_elements.iter() {
+                        elements.push((idx * face.vertices.len()) as GLuint + *e);
+                    }
 
-                for e in cube_elements.iter() {
-                    elements.push((idx * cube_vertices.len()) as GLuint + *e);
+                    idx += 1;
                 }
-
-                idx += 1;
             }
         }
     }
@@ -367,89 +371,76 @@ fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64) -> 
     };
 }
 
-static cube_vertices : [Vec3<f32>, ..24] = [
-    /* Front face */
-    Vec3 { x: 0.0, y: 0.0, z: 1.0 }, /* bottom left */
-    Vec3 { x: 1.0, y: 0.0, z: 1.0 },  /* bottom right */
-    Vec3 { x: 0.0, y: 1.0, z: 1.0 }, /* top left */
-    Vec3 { x: 1.0, y: 1.0, z: 1.0 },  /* top right */
-
-    /* Back face */
-    Vec3 { x: 1.0, y: 0.0, z: 0.0 }, /* bottom right */
-    Vec3 { x: 0.0, y: 0.0, z: 0.0 },  /* bottom left */
-    Vec3 { x: 1.0, y: 1.0, z: 0.0 }, /* top right */
-    Vec3 { x: 0.0, y: 1.0, z: 0.0 },  /* top left */
-
-    /* Right face */
-    Vec3 { x: 1.0, y: 0.0, z: 1.0 }, /* bottom front */
-    Vec3 { x: 1.0, y: 0.0, z: 0.0 }, /* bottom back */
-    Vec3 { x: 1.0, y: 1.0, z: 1.0 }, /* top front */
-    Vec3 { x: 1.0, y: 1.0, z: 0.0 }, /* top back */
-
-    /* Left face */
-    Vec3 { x: 0.0, y: 0.0, z: 0.0 }, /* bottom back */
-    Vec3 { x: 0.0, y: 0.0, z: 1.0 }, /* bottom front */
-    Vec3 { x: 0.0, y: 1.0, z: 0.0 }, /* top back */
-    Vec3 { x: 0.0, y: 1.0, z: 1.0 }, /* top front */
-
-    /* Top face */
-    Vec3 { x: 0.0, y: 1.0, z: 1.0 }, /* front left */
-    Vec3 { x: 1.0, y: 1.0, z: 1.0 }, /* front right */
-    Vec3 { x: 0.0, y: 1.0, z: 0.0 }, /* back left */
-    Vec3 { x: 1.0, y: 1.0, z: 0.0 }, /* back right */
-
-    /* Bottom face */
-    Vec3 { x: 0.0, y: 0.0, z: 0.0 }, /* back left */
-    Vec3 { x: 1.0, y: 0.0, z: 0.0 }, /* back right */
-    Vec3 { x: 0.0, y: 0.0, z: 1.0 }, /* front left */
-    Vec3 { x: 1.0, y: 0.0, z: 1.0 }, /* front right */
-];
-
-static cube_normals : [Vec3<f32>, ..24] = [
-    /* Front face */
-    Vec3 { x: 0.0, y: 0.0, z: 1.0 },
-    Vec3 { x: 0.0, y: 0.0, z: 1.0 },
-    Vec3 { x: 0.0, y: 0.0, z: 1.0 },
-    Vec3 { x: 0.0, y: 0.0, z: 1.0 },
-
-    /* Back face */
-    Vec3 { x: 0.0, y: 0.0, z: -1.0 },
-    Vec3 { x: 0.0, y: 0.0, z: -1.0 },
-    Vec3 { x: 0.0, y: 0.0, z: -1.0 },
-    Vec3 { x: 0.0, y: 0.0, z: -1.0 },
-
-    /* Right face */
-    Vec3 { x: 1.0, y: 0.0, z: 0.0 },
-    Vec3 { x: 1.0, y: 0.0, z: 0.0 },
-    Vec3 { x: 1.0, y: 0.0, z: 0.0 },
-    Vec3 { x: 1.0, y: 0.0, z: 0.0 },
-
-    /* Left face */
-    Vec3 { x: -1.0, y: 0.0, z: 0.0 },
-    Vec3 { x: -1.0, y: 0.0, z: 0.0 },
-    Vec3 { x: -1.0, y: 0.0, z: 0.0 },
-    Vec3 { x: -1.0, y: 0.0, z: 0.0 },
-
-    /* Top face */
-    Vec3 { x: 0.0, y: 1.0, z: 0.0 },
-    Vec3 { x: 0.0, y: 1.0, z: 0.0 },
-    Vec3 { x: 0.0, y: 1.0, z: 0.0 },
-    Vec3 { x: 0.0, y: 1.0, z: 0.0 },
-
-    /* Bottom face */
-    Vec3 { x: 0.0, y: -1.0, z: 0.0 },
-    Vec3 { x: 0.0, y: -1.0, z: 0.0 },
-    Vec3 { x: 0.0, y: -1.0, z: 0.0 },
-    Vec3 { x: 0.0, y: -1.0, z: 0.0 },
-];
-
-static cube_elements : [GLuint, ..36] = [
+static face_elements : [GLuint, ..6] = [
     0, 1, 2, 3, 2, 1,
-    4, 5, 6, 7, 6, 5,
-    8, 9, 10, 11, 10, 9,
-    12, 13, 14, 15, 14, 13,
-    16, 17, 18, 19, 18, 17,
-    20, 21, 22, 23, 22, 21,
+];
+
+static faces : [Face, ..6] = [
+    /* front */
+    Face {
+        normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+        vertices: [
+            Vec3 { x: 0.0, y: 0.0, z: 1.0 }, /* bottom left */
+            Vec3 { x: 1.0, y: 0.0, z: 1.0 },  /* bottom right */
+            Vec3 { x: 0.0, y: 1.0, z: 1.0 }, /* top left */
+            Vec3 { x: 1.0, y: 1.0, z: 1.0 },  /* top right */
+        ],
+    },
+
+    /* back */
+    Face {
+        normal: Vec3 { x: 0.0, y: 0.0, z: -1.0 },
+        vertices: [
+            Vec3 { x: 1.0, y: 0.0, z: 0.0 }, /* bottom right */
+            Vec3 { x: 0.0, y: 0.0, z: 0.0 },  /* bottom left */
+            Vec3 { x: 1.0, y: 1.0, z: 0.0 }, /* top right */
+            Vec3 { x: 0.0, y: 1.0, z: 0.0 },  /* top left */
+        ],
+    },
+
+    /* right */
+    Face {
+        normal: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+        vertices: [
+            Vec3 { x: 1.0, y: 0.0, z: 1.0 }, /* bottom front */
+            Vec3 { x: 1.0, y: 0.0, z: 0.0 }, /* bottom back */
+            Vec3 { x: 1.0, y: 1.0, z: 1.0 }, /* top front */
+            Vec3 { x: 1.0, y: 1.0, z: 0.0 }, /* top back */
+        ],
+    },
+
+    /* left */
+    Face {
+        normal: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
+        vertices: [
+            Vec3 { x: 0.0, y: 0.0, z: 0.0 }, /* bottom back */
+            Vec3 { x: 0.0, y: 0.0, z: 1.0 }, /* bottom front */
+            Vec3 { x: 0.0, y: 1.0, z: 0.0 }, /* top back */
+            Vec3 { x: 0.0, y: 1.0, z: 1.0 }, /* top front */
+        ],
+    },
+
+    /* top */
+    Face {
+        normal: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+        vertices: [
+            Vec3 { x: 0.0, y: 1.0, z: 1.0 }, /* front left */
+            Vec3 { x: 1.0, y: 1.0, z: 1.0 }, /* front right */
+            Vec3 { x: 0.0, y: 1.0, z: 0.0 }, /* back left */
+            Vec3 { x: 1.0, y: 1.0, z: 0.0 }, /* back right */
+        ],
+    },
+
+    /* bottom */
+    Face {
+        normal: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+        vertices: [
+            Vec3 { x: 0.0, y: 0.0, z: 0.0 }, /* back left */
+            Vec3 { x: 1.0, y: 0.0, z: 0.0 }, /* back right */
+            Vec3 { x: 0.0, y: 0.0, z: 1.0 }, /* front left */
+            Vec3 { x: 1.0, y: 0.0, z: 1.0 }, /* front right */
+        ],
+    },
 ];
 
 fn load_graphics_resources() -> GraphicsResources {
