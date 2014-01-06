@@ -258,6 +258,14 @@ fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64) -> 
     let def_block = Block { color: Vec4::<f32>::new(0.0, 0.0, 0.0, 0.0) };
     let mut blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE] = [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE];
 
+    let block_exists = |x: int, y: int, z: int| -> bool {
+        if x < 0 || x >= CHUNK_SIZE as int || y < 0 || y >= CHUNK_SIZE as int || z < 0 || z >= CHUNK_SIZE as int {
+            return false;
+        }
+
+        blocks[x][y][z].color.w == 1.0f32
+    };
+
     let perlin = Perlin::from_seed([seed as uint]);
 
     for block_x in range(0, CHUNK_SIZE) {
@@ -285,13 +293,18 @@ fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64) -> 
             for z in range(0, CHUNK_SIZE) {
                 let block = &blocks[x][y][z];
 
-                if (block.color.w < 0.5f32) {
+                if (block.color.w == 0.0f32) {
                     continue;
                 }
 
                 let block_position = Vec3 { x: x as f32, y: y as f32, z: z as f32 };
 
                 for face in faces.iter() {
+                    let neighbor_position = block_position.add_v(&face.normal);
+                    if block_exists(neighbor_position.x as int, neighbor_position.y as int, neighbor_position.z as int) {
+                        continue;
+                    }
+
                     for v in face.vertices.iter() {
                         vertices.push(v.add_v(&block_position));
                         normals.push(face.normal);
