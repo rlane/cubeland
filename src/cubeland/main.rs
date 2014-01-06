@@ -33,14 +33,14 @@ static vertex_shader_src : &'static str = r"
 
 uniform mat4 transform;
 
-attribute vec4 position;
+attribute vec3 position;
 attribute vec3 normal;
 
 varying vec4 frag_position;
 varying vec3 frag_normal;
 
 void main() {
-    frag_position = position;
+    frag_position = vec4(position, 1.0);
     frag_normal = normal;
     gl_Position = transform * frag_position;
 }
@@ -75,6 +75,11 @@ struct Chunk {
     x: i64,
     z: i64,
     blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
+    vao: GLuint,
+    vertex_buffer: GLuint,
+    normal_buffer: GLuint,
+    element_buffer: GLuint,
+    num_elements: uint,
 }
 
 struct Block {
@@ -83,7 +88,6 @@ struct Block {
 
 struct GraphicsResources {
     program: GLuint,
-    vao: GLuint,
     uniform_transform: GLint,
 }
 
@@ -115,13 +119,12 @@ fn main() {
         let graphics_resources = load_graphics_resources();
 
         gl::UseProgram(graphics_resources.program);
-        gl::BindVertexArray(graphics_resources.vao);
 
         let chunks = ~[
-            chunk_gen(42, 0, 0),
-            chunk_gen(42, -16, 0),
-            chunk_gen(42, 0, -16),
-            chunk_gen(42, -16, -16),
+            chunk_gen(&graphics_resources, 42, 0, 0),
+            chunk_gen(&graphics_resources, 42, -16, 0),
+            chunk_gen(&graphics_resources, 42, 0, -16),
+            chunk_gen(&graphics_resources, 42, -16, -16),
         ];
 
         window.set_key_callback(~KeyContext);
@@ -204,7 +207,7 @@ fn main() {
             let camera = camera_rotation_x.mul_m(&camera_rotation_y).mul_m(&camera_translation);
 
             let inv_camera_rotation = Mat3::<f32>::from_euler(rad(-camera_angle_x as f32), rad(-camera_angle_y as f32), rad(0.0f32));
-            let absolute_camera_velocity = inv_camera_rotation.mul_v(&camera_velocity);
+            let absolute_camera_velocity = inv_camera_rotation.mul_v(&camera_velocity).mul_s(0.5f32);
             camera_position.add_self_v(&absolute_camera_velocity);
 
             for chunk in chunks.iter() {
@@ -212,32 +215,18 @@ fn main() {
                     Vec4::<f32>::unit_x(),
                     Vec4::<f32>::unit_y(),
                     Vec4::<f32>::unit_z(),
-                    Vec4::<f32>::new(chunk.x as f32 * 1.1f32, 0.0f32, chunk.z as f32 * 1.1f32, 1.0f32));
+                    Vec4::<f32>::new(chunk.x as f32, 0.0f32, chunk.z as f32, 1.0f32));
 
-                for x in range(0, CHUNK_SIZE) {
-                    for y in range(0, CHUNK_SIZE) {
-                        for z in range(0, CHUNK_SIZE) {
-                            let block = &chunk.blocks[x][y][z];
+                let transform = projection.mul_m(&camera).mul_m(&chunk_transform);
 
-                            if (block.color.w < 0.5f32) {
-                                continue;
-                            }
+                gl::BindVertexArray(chunk.vao);
 
-                            let block_transform = Mat4::<f32>::from_cols(
-                                Vec4::<f32>::unit_x(),
-                                Vec4::<f32>::unit_y(),
-                                Vec4::<f32>::unit_z(),
-                                Vec4::<f32>::new(x as f32, y as f32, z as f32, 1.0f32));
-
-                            let transform = projection.mul_m(&camera).mul_m(&chunk_transform).mul_m(&block_transform);
-
-                            unsafe {
-                                gl::UniformMatrix4fv(graphics_resources.uniform_transform, 1, gl::FALSE, cast::transmute(&transform));
-                                gl::DrawElements(gl::TRIANGLES, cube_elements.len() as i32, gl::UNSIGNED_SHORT, ptr::null());
-                            }
-                        }
-                    }
+                unsafe {
+                    gl::UniformMatrix4fv(graphics_resources.uniform_transform, 1, gl::FALSE, cast::transmute(&transform));
+                    gl::DrawElements(gl::TRIANGLES, chunk.num_elements as i32, gl::UNSIGNED_INT, ptr::null());
                 }
+
+                gl::BindVertexArray(0);
             }
 
             window.swap_buffers();
@@ -255,7 +244,7 @@ fn main() {
     }
 }
 
-fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64) -> Chunk {
+fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64) -> Chunk {
     let def_block = Block { color: Vec4::<f32>::new(0.0, 0.0, 0.0, 0.0) };
     let mut blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE] = [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE];
 
@@ -275,100 +264,39 @@ fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64) -> Chunk {
         }
     }
 
-    return Chunk { x: chunk_x, z: chunk_z, blocks: blocks };
-}
+    let mut vertices : ~[Vec3<f32>] = ~[];
+    let mut normals : ~[Vec3<f32>] = ~[];
+    let mut elements : ~[GLuint] = ~[];
 
-static cube_vertices : [GLfloat, ..96] = [
-    /* Front face */
-    -1.0, -1.0,  1.0, 1.0, /* bottom left */
-    1.0, -1.0,  1.0, 1.0,  /* bottom right */
-    -1.0,  1.0,  1.0, 1.0, /* top left */
-    1.0,  1.0,  1.0, 1.0,  /* top right */
+    let mut idx = 0;
 
-    /* Back face */
-    1.0, -1.0, -1.0, 1.0, /* bottom right */
-    -1.0, -1.0, -1.0, 1.0,  /* bottom left */
-    1.0, 1.0, -1.0, 1.0, /* top right */
-    -1.0, 1.0, -1.0, 1.0,  /* top left */
+    for x in range(0, CHUNK_SIZE) {
+        for y in range(0, CHUNK_SIZE) {
+            for z in range(0, CHUNK_SIZE) {
+                let block = &blocks[x][y][z];
 
-    /* Right face */
-    1.0, -1.0, 1.0, 1.0, /* bottom front */
-    1.0, -1.0, -1.0, 1.0, /* bottom back */
-    1.0, 1.0, 1.0, 1.0, /* top front */
-    1.0, 1.0, -1.0, 1.0, /* top back */
+                if (block.color.w < 0.5f32) {
+                    continue;
+                }
 
-    /* Left face */
-    -1.0, -1.0, -1.0, 1.0, /* bottom back */
-    -1.0, -1.0, 1.0, 1.0, /* bottom front */
-    -1.0, 1.0, -1.0, 1.0, /* top back */
-    -1.0, 1.0, 1.0, 1.0, /* top front */
+                let block_position = Vec3 { x: x as f32, y: y as f32, z: z as f32 };
 
-    /* Top face */
-    -1.0, 1.0, 1.0, 1.0, /* front left */
-    1.0, 1.0, 1.0, 1.0, /* front right */
-    -1.0, 1.0, -1.0, 1.0, /* back left */
-    1.0, 1.0, -1.0, 1.0, /* back right */
+                for v in cube_vertices.iter() {
+                    vertices.push(v.mul_s(1.0f32).add_v(&block_position));
+                }
 
-    /* Bottom face */
-    -1.0, -1.0, -1.0, 1.0, /* back left */
-    1.0, -1.0, -1.0, 1.0, /* back right */
-    -1.0, -1.0, 1.0, 1.0, /* front left */
-    1.0, -1.0, 1.0, 1.0, /* front right */
-];
+                for v in cube_normals.iter() {
+                    normals.push(*v);
+                }
 
-static cube_normals : [GLfloat, ..72] = [
-    /* Front face */
-    0.0, 0.0, 1.0,
-    0.0, 0.0, 1.0,
-    0.0, 0.0, 1.0,
-    0.0, 0.0, 1.0,
+                for e in cube_elements.iter() {
+                    elements.push((idx * cube_vertices.len()) as GLuint + *e);
+                }
 
-    /* Back face */
-    0.0, 0.0, -1.0,
-    0.0, 0.0, -1.0,
-    0.0, 0.0, -1.0,
-    0.0, 0.0, -1.0,
-
-    /* Right face */
-    1.0, 0.0, 0.0,
-    1.0, 0.0, 0.0,
-    1.0, 0.0, 0.0,
-    1.0, 0.0, 0.0,
-
-    /* Left face */
-    -1.0, 0.0, 0.0,
-    -1.0, 0.0, 0.0,
-    -1.0, 0.0, 0.0,
-    -1.0, 0.0, 0.0,
-
-    /* Top face */
-    0.0, 1.0, 0.0,
-    0.0, 1.0, 0.0,
-    0.0, 1.0, 0.0,
-    0.0, 1.0, 0.0,
-
-    /* Bottom face */
-    0.0, -1.0, 0.0,
-    0.0, -1.0, 0.0,
-    0.0, -1.0, 0.0,
-    0.0, -1.0, 0.0,
-];
-
-static cube_elements : [GLshort, ..36] = [
-    0, 1, 2, 3, 2, 1,
-    4, 5, 6, 7, 6, 5,
-    8, 9, 10, 11, 10, 9,
-    12, 13, 14, 15, 14, 13,
-    16, 17, 18, 19, 18, 17,
-    20, 21, 22, 23, 22, 21,
-];
-
-fn load_graphics_resources() -> GraphicsResources {
-    let vs = compile_shader(vertex_shader_src.as_bytes(), gl::VERTEX_SHADER);
-    let fs = compile_shader(fragment_shader_src.as_bytes(), gl::FRAGMENT_SHADER);
-    let program = link_program(vs, fs);
-
-    let uniform_transform = unsafe { "transform".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
+                idx += 1;
+            }
+        }
+    }
 
     let mut vao = 0;
     let mut vertex_buffer = 0;
@@ -384,37 +312,35 @@ fn load_graphics_resources() -> GraphicsResources {
         gl::GenBuffers(1, &mut vertex_buffer);
         gl::BindBuffer(gl::ARRAY_BUFFER, vertex_buffer);
         gl::BufferData(gl::ARRAY_BUFFER,
-                        (cube_vertices.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
-                        cast::transmute(&cube_vertices[0]),
+                        (vertices.len() * std::mem::size_of::<Vec3<f32>>()) as GLsizeiptr,
+                        cast::transmute(&vertices[0]),
                         gl::STATIC_DRAW);
 
         // Create a Vertex Buffer Object and copy the normal data to it
         gl::GenBuffers(1, &mut normal_buffer);
         gl::BindBuffer(gl::ARRAY_BUFFER, normal_buffer);
         gl::BufferData(gl::ARRAY_BUFFER,
-                        (cube_normals.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
-                        cast::transmute(&cube_normals[0]),
+                        (normals.len() * std::mem::size_of::<Vec3<f32>>()) as GLsizeiptr,
+                        cast::transmute(&normals[0]),
                         gl::STATIC_DRAW);
 
         // Create a Vertex Buffer Object and copy the element data to it
         gl::GenBuffers(1, &mut element_buffer);
         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, element_buffer);
         gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
-                        (cube_elements.len() * std::mem::size_of::<GLshort>()) as GLsizeiptr,
-                        cast::transmute(&cube_elements[0]),
+                        (elements.len() * std::mem::size_of::<GLuint>()) as GLsizeiptr,
+                        cast::transmute(&elements[0]),
                         gl::STATIC_DRAW);
 
-        gl::UseProgram(program);
-
         // Specify the layout of the vertex data
-        let vert_attr = "position".with_c_str(|ptr| gl::GetAttribLocation(program, ptr));
+        let vert_attr = "position".with_c_str(|ptr| gl::GetAttribLocation(res.program, ptr));
         assert!(vert_attr as u32 != gl::INVALID_VALUE);
         gl::BindBuffer(gl::ARRAY_BUFFER, vertex_buffer);
         gl::EnableVertexAttribArray(vert_attr as GLuint);
-        gl::VertexAttribPointer(vert_attr as GLuint, 4, gl::FLOAT,
+        gl::VertexAttribPointer(vert_attr as GLuint, 3, gl::FLOAT,
                                 gl::FALSE as GLboolean, 0, ptr::null());
 
-        let normal_attr = "normal".with_c_str(|ptr| gl::GetAttribLocation(program, ptr));
+        let normal_attr = "normal".with_c_str(|ptr| gl::GetAttribLocation(res.program, ptr));
         assert!(normal_attr as u32 != gl::INVALID_VALUE);
         gl::BindBuffer(gl::ARRAY_BUFFER, normal_buffer);
         gl::EnableVertexAttribArray(normal_attr as GLuint);
@@ -422,13 +348,114 @@ fn load_graphics_resources() -> GraphicsResources {
                                 gl::FALSE as GLboolean, 0, ptr::null());
     }
 
-    gl::UseProgram(0);
-
     gl::BindVertexArray(0);
+
+    return Chunk {
+        x: chunk_x,
+        z: chunk_z,
+        blocks: blocks,
+        vao: vao,
+        vertex_buffer: vertex_buffer,
+        normal_buffer: normal_buffer,
+        element_buffer: element_buffer,
+        num_elements: elements.len(),
+    };
+}
+
+static cube_vertices : [Vec3<f32>, ..24] = [
+    /* Front face */
+    Vec3 { x: 0.0, y: 0.0, z: 1.0 }, /* bottom left */
+    Vec3 { x: 1.0, y: 0.0, z: 1.0 },  /* bottom right */
+    Vec3 { x: 0.0, y: 1.0, z: 1.0 }, /* top left */
+    Vec3 { x: 1.0, y: 1.0, z: 1.0 },  /* top right */
+
+    /* Back face */
+    Vec3 { x: 1.0, y: 0.0, z: 0.0 }, /* bottom right */
+    Vec3 { x: 0.0, y: 0.0, z: 0.0 },  /* bottom left */
+    Vec3 { x: 1.0, y: 1.0, z: 0.0 }, /* top right */
+    Vec3 { x: 0.0, y: 1.0, z: 0.0 },  /* top left */
+
+    /* Right face */
+    Vec3 { x: 1.0, y: 0.0, z: 1.0 }, /* bottom front */
+    Vec3 { x: 1.0, y: 0.0, z: 0.0 }, /* bottom back */
+    Vec3 { x: 1.0, y: 1.0, z: 1.0 }, /* top front */
+    Vec3 { x: 1.0, y: 1.0, z: 0.0 }, /* top back */
+
+    /* Left face */
+    Vec3 { x: 0.0, y: 0.0, z: 0.0 }, /* bottom back */
+    Vec3 { x: 0.0, y: 0.0, z: 1.0 }, /* bottom front */
+    Vec3 { x: 0.0, y: 1.0, z: 0.0 }, /* top back */
+    Vec3 { x: 0.0, y: 1.0, z: 1.0 }, /* top front */
+
+    /* Top face */
+    Vec3 { x: 0.0, y: 1.0, z: 1.0 }, /* front left */
+    Vec3 { x: 1.0, y: 1.0, z: 1.0 }, /* front right */
+    Vec3 { x: 0.0, y: 1.0, z: 0.0 }, /* back left */
+    Vec3 { x: 1.0, y: 1.0, z: 0.0 }, /* back right */
+
+    /* Bottom face */
+    Vec3 { x: 0.0, y: 0.0, z: 0.0 }, /* back left */
+    Vec3 { x: 1.0, y: 0.0, z: 0.0 }, /* back right */
+    Vec3 { x: 0.0, y: 0.0, z: 1.0 }, /* front left */
+    Vec3 { x: 1.0, y: 0.0, z: 1.0 }, /* front right */
+];
+
+static cube_normals : [Vec3<f32>, ..24] = [
+    /* Front face */
+    Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+    Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+    Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+    Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+
+    /* Back face */
+    Vec3 { x: 0.0, y: 0.0, z: -1.0 },
+    Vec3 { x: 0.0, y: 0.0, z: -1.0 },
+    Vec3 { x: 0.0, y: 0.0, z: -1.0 },
+    Vec3 { x: 0.0, y: 0.0, z: -1.0 },
+
+    /* Right face */
+    Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+    Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+    Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+    Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+
+    /* Left face */
+    Vec3 { x: -1.0, y: 0.0, z: 0.0 },
+    Vec3 { x: -1.0, y: 0.0, z: 0.0 },
+    Vec3 { x: -1.0, y: 0.0, z: 0.0 },
+    Vec3 { x: -1.0, y: 0.0, z: 0.0 },
+
+    /* Top face */
+    Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+    Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+    Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+    Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+
+    /* Bottom face */
+    Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+    Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+    Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+    Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+];
+
+static cube_elements : [GLuint, ..36] = [
+    0, 1, 2, 3, 2, 1,
+    4, 5, 6, 7, 6, 5,
+    8, 9, 10, 11, 10, 9,
+    12, 13, 14, 15, 14, 13,
+    16, 17, 18, 19, 18, 17,
+    20, 21, 22, 23, 22, 21,
+];
+
+fn load_graphics_resources() -> GraphicsResources {
+    let vs = compile_shader(vertex_shader_src.as_bytes(), gl::VERTEX_SHADER);
+    let fs = compile_shader(fragment_shader_src.as_bytes(), gl::FRAGMENT_SHADER);
+    let program = link_program(vs, fs);
+
+    let uniform_transform = unsafe { "transform".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
 
     return GraphicsResources {
         program: program,
-        vao: vao,
         uniform_transform: uniform_transform,
     };
 
