@@ -36,36 +36,31 @@ uniform mat4 transform;
 attribute vec3 position;
 attribute vec3 normal;
 
-varying vec4 frag_position;
-varying vec3 frag_normal;
+varying vec4 frag_color;
+
+const vec4 obj_diffuse = vec4(0.2, 0.6, 0.2, 1.0);
+const vec3 light_direction = vec3(0.408248, -0.816497, 0.408248);
+const vec4 light_diffuse = vec4(0.8, 0.8, 0.8, 0.0);
+const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
 
 void main() {
-    frag_position = vec4(position, 1.0);
-    frag_normal = normal;
-    gl_Position = transform * frag_position;
+    gl_Position = transform * vec4(position, 1.0);
+
+    vec4 diffuse_factor
+        = max(-dot(normal, light_direction), 0.0) * light_diffuse;
+    vec4 ambient_diffuse_factor = diffuse_factor + light_ambient;
+
+    frag_color = ambient_diffuse_factor * obj_diffuse;
 }
 ";
 
 static fragment_shader_src : &'static str = r"
 #version 110
 
-varying vec4 frag_position;
-varying vec3 frag_normal;
-
-const vec4 obj_diffuse = vec4(0.2, 0.6, 0.2, 1.0);
-
-const vec3 light_direction = vec3(0.408248, -0.816497, 0.408248);
-const vec4 light_diffuse = vec4(0.8, 0.8, 0.8, 0.0);
-const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
+varying vec4 frag_color;
 
 void main() {
-    vec3 mv_light_direction = light_direction;
-
-    vec4 diffuse_factor
-        = max(-dot(frag_normal, mv_light_direction), 0.0) * light_diffuse;
-    vec4 ambient_diffuse_factor = diffuse_factor + light_ambient;
-
-    gl_FragColor = ambient_diffuse_factor * obj_diffuse;
+    gl_FragColor = frag_color;
 }
 ";
 
