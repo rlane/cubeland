@@ -11,6 +11,7 @@ use std::ptr;
 use std::str;
 use std::vec;
 use std::libc;
+use std::io::Timer;
 
 use gl::types::*;
 
@@ -70,6 +71,8 @@ pub static WORLD_SIZE: uint = 4;
 pub static CHUNK_SIZE: uint = 64;
 pub static WORLD_SEED: u32 = 42;
 
+static FRAME_TIME_TARGET_MS : u64 = 16;
+
 struct GraphicsResources {
     program: GLuint,
     uniform_transform: GLint,
@@ -125,7 +128,11 @@ fn main() {
 
         let mut camera_position = Vec3::<f32>::new(0.0f32, 20.0f32, 40.0f32);
 
+        let mut timer = Timer::new().unwrap();
+
         while !window.should_close() {
+            let frame_start_time = extra::time::precise_time_ns();
+
             glfw::poll_events();
 
             loop {
@@ -228,6 +235,11 @@ fn main() {
                 last_frame_time = cur_time;
             }
 
+            let frame_end_time = extra::time::precise_time_ns();
+            let frame_time_ms = (frame_end_time - frame_start_time)/(1000*1000);
+            if (frame_time_ms < FRAME_TIME_TARGET_MS) {
+                timer.sleep(FRAME_TIME_TARGET_MS - frame_time_ms);
+            }
         }
     }
 }
