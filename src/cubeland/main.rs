@@ -24,8 +24,6 @@ use cgmath::vector::Vec3;
 use cgmath::vector::Vec4;
 use cgmath::angle::rad;
 
-use chunk::Chunk;
-
 #[link(name="GLU")]
 extern {}
 
@@ -107,15 +105,7 @@ fn main() {
 
         gl::UseProgram(graphics_resources.program);
 
-        let mut chunks : ~[~Chunk] = ~[];
-        for x in range(0, WORLD_SIZE) {
-            for z in range(0, WORLD_SIZE) {
-                chunks.push(
-                    chunk::chunk_gen(&graphics_resources, WORLD_SEED,
-                              ((x as int - WORLD_SIZE as int/2) * CHUNK_SIZE as int) as i64,
-                              ((z as int - WORLD_SIZE as int/2) * CHUNK_SIZE as int) as i64));
-            }
-        }
+        let mut chunk_loader = chunk::ChunkLoader::new(WORLD_SEED, &graphics_resources);
 
         window.set_key_callback(~KeyContext);
 
@@ -204,7 +194,7 @@ fn main() {
             let absolute_camera_velocity = inv_camera_rotation.mul_v(&camera_velocity).mul_s(0.5f32);
             camera_position.add_self_v(&absolute_camera_velocity);
 
-            for chunk in chunks.iter() {
+            for (_, chunk) in chunk_loader.cache.iter() {
                 let chunk_transform = Mat4::<f32>::from_cols(
                     Vec4::<f32>::unit_x(),
                     Vec4::<f32>::unit_y(),
@@ -226,6 +216,8 @@ fn main() {
             window.swap_buffers();
 
             check_gl("main loop");
+
+            chunk_loader.update(camera_position.x as i64, camera_position.z as i64);
 
             let cur_time = extra::time::precise_time_ns();
             num_frames += 1;

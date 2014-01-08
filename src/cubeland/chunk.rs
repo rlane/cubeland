@@ -6,6 +6,7 @@ extern mod noise;
 
 use std::cast;
 use std::ptr;
+use std::hashmap::HashMap;
 use std;
 
 use gl::types::*;
@@ -17,7 +18,54 @@ use cgmath::vector::Vec4;
 use noise::Perlin;
 
 use CHUNK_SIZE;
+use WORLD_SIZE;
 use GraphicsResources;
+
+static MAX_CHUNKS : uint = 32;
+
+pub struct ChunkLoader<'a> {
+    seed : u32,
+    graphics_resources : &'a GraphicsResources,
+    cache : HashMap<(i64, i64), ~Chunk>
+}
+
+impl<'a> ChunkLoader<'a> {
+    pub fn new<'a>(seed : u32, graphics_resources : &'a GraphicsResources) -> ChunkLoader<'a> {
+        ChunkLoader {
+            seed: seed,
+            graphics_resources : graphics_resources,
+            cache: HashMap::new(),
+        }
+    }
+
+    pub fn update(&mut self, x : i64, z: i64) {
+        let mask : i64 = !(CHUNK_SIZE as i64 - 1);
+        let mut loaded = false;
+
+        for ix in range(-(WORLD_SIZE as i64)/2, (WORLD_SIZE as i64)/2) {
+            for iz in range(-(WORLD_SIZE as i64)/2, (WORLD_SIZE as i64)/2) {
+                let cx : i64 = (x & mask) + ix*CHUNK_SIZE as i64;
+                let cz : i64 = (z & mask) + iz*CHUNK_SIZE as i64;
+                if !self.cache.contains_key(&(cx, cz)) {
+                    if !loaded {
+                        println!("loading chunk ({}, {})", cx, cz);
+                        let chunk = chunk_gen(self.graphics_resources, self.seed, cx, cz);
+                        self.cache.insert((cx, cz), chunk);
+                        loaded = true;
+                    }
+                } else {
+                    let chunk = self.cache.find_mut(&(cx, cz)).unwrap();
+                    chunk.touch();
+                }
+            }
+        }
+
+        while self.cache.len() > MAX_CHUNKS {
+            let (&k, _) = self.cache.iter().min_by(|&(_, chunk)| chunk.used_time).unwrap();
+            self.cache.remove(&k);
+        }
+    }
+}
 
 pub struct Chunk {
     x: i64,
@@ -28,6 +76,25 @@ pub struct Chunk {
     normal_buffer: GLuint,
     element_buffer: GLuint,
     num_elements: uint,
+    used_time: u64,
+}
+
+impl Chunk {
+    fn touch(&mut self) {
+        self.used_time = extra::time::precise_time_ns();
+    }
+}
+
+impl Drop for Chunk {
+    fn drop(&mut self) {
+        unsafe {
+            println!("unloading chunk ({}, {})", self.x, self.z);
+            gl::DeleteBuffers(1, &self.vertex_buffer);
+            gl::DeleteBuffers(1, &self.normal_buffer);
+            gl::DeleteBuffers(1, &self.element_buffer);
+            gl::DeleteVertexArrays(1, &self.vao);
+        }
+    }
 }
 
 struct Block {
@@ -172,6 +239,7 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64)
         normal_buffer: normal_buffer,
         element_buffer: element_buffer,
         num_elements: elements.len(),
+        used_time: extra::time::precise_time_ns(),
     };
 }
 
