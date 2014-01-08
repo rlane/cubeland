@@ -33,7 +33,8 @@ mod chunk;
 static vertex_shader_src : &'static str = r"
 #version 110
 
-uniform mat4 transform;
+uniform mat4 modelview;
+uniform mat4 projection;
 
 attribute vec3 position;
 attribute vec3 normal;
@@ -46,7 +47,7 @@ const vec4 light_diffuse = vec4(0.8, 0.8, 0.8, 0.0);
 const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
 
 void main() {
-    gl_Position = transform * vec4(position, 1.0);
+    gl_Position = projection * modelview * vec4(position, 1.0);
 
     vec4 diffuse_factor
         = max(-dot(normal, light_direction), 0.0) * light_diffuse;
@@ -74,7 +75,8 @@ static FRAME_TIME_TARGET_MS : u64 = 16;
 
 struct GraphicsResources {
     program: GLuint,
-    uniform_transform: GLint,
+    uniform_modelview: GLint,
+    uniform_projection: GLint,
 }
 
 #[start]
@@ -184,6 +186,10 @@ fn main() {
                 window_width as f32 / window_height as f32,
                 0.1f32, 1000.0f32);
 
+            unsafe {
+                gl::UniformMatrix4fv(graphics_resources.uniform_projection, 1, gl::FALSE, cast::transmute(&projection));
+            }
+
             let camera_translation = Mat4::<f32>::from_cols(
                 Vec4::<f32>::unit_x(),
                 Vec4::<f32>::unit_y(),
@@ -198,18 +204,18 @@ fn main() {
             camera_position.add_self_v(&absolute_camera_velocity);
 
             for (_, chunk) in chunk_loader.cache.iter() {
-                let chunk_transform = Mat4::<f32>::from_cols(
+                let chunk_translation = Mat4::<f32>::from_cols(
                     Vec4::<f32>::unit_x(),
                     Vec4::<f32>::unit_y(),
                     Vec4::<f32>::unit_z(),
                     Vec4::<f32>::new(chunk.x as f32, 0.0f32, chunk.z as f32, 1.0f32));
 
-                let transform = projection.mul_m(&camera).mul_m(&chunk_transform);
+                let modelview = camera.mul_m(&chunk_translation);
 
                 gl::BindVertexArray(chunk.vao);
 
                 unsafe {
-                    gl::UniformMatrix4fv(graphics_resources.uniform_transform, 1, gl::FALSE, cast::transmute(&transform));
+                    gl::UniformMatrix4fv(graphics_resources.uniform_modelview, 1, gl::FALSE, cast::transmute(&modelview));
                     gl::DrawElements(gl::TRIANGLES, chunk.num_elements as i32, gl::UNSIGNED_INT, ptr::null());
                 }
 
@@ -244,11 +250,13 @@ fn load_graphics_resources() -> GraphicsResources {
     let fs = compile_shader(fragment_shader_src.as_bytes(), gl::FRAGMENT_SHADER);
     let program = link_program(vs, fs);
 
-    let uniform_transform = unsafe { "transform".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
+    let uniform_modelview = unsafe { "modelview".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
+    let uniform_projection = unsafe { "projection".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
 
     return GraphicsResources {
         program: program,
-        uniform_transform: uniform_transform,
+        uniform_modelview: uniform_modelview,
+        uniform_projection: uniform_projection,
     };
 
 }
