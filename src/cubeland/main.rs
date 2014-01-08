@@ -1,5 +1,6 @@
 #[feature(globs)];
 
+extern mod native;
 extern mod extra;
 extern mod glfw;
 extern mod gl;
@@ -78,7 +79,9 @@ struct GraphicsResources {
 
 #[start]
 fn start(argc: int, argv: **u8) -> int {
-    std::rt::start_on_main_thread(argc, argv, main)
+    do native::start(argc, argv) {
+        main();
+    }
 }
 
 fn main() {
