@@ -121,7 +121,7 @@ fn main() {
 
         let mut camera_position = Vec3::<f32>::new(0.0f32, 20.0f32, 40.0f32);
 
-        let mut timer = Timer::new().unwrap();
+        //let mut timer = Timer::new().unwrap();
 
         while !window.should_close() {
             let frame_start_time = extra::time::precise_time_ns();
@@ -233,7 +233,7 @@ fn main() {
             let frame_end_time = extra::time::precise_time_ns();
             let frame_time_ms = (frame_end_time - frame_start_time)/(1000*1000);
             if (frame_time_ms < FRAME_TIME_TARGET_MS) {
-                timer.sleep(FRAME_TIME_TARGET_MS - frame_time_ms);
+                //timer.sleep(FRAME_TIME_TARGET_MS - frame_time_ms);
             }
         }
     }
