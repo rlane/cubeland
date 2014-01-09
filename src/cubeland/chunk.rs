@@ -124,6 +124,8 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64)
         map.blocks[x][y][z].visible
     };
 
+    let start_time = extra::time::precise_time_ns();
+
     let perlin = Perlin::from_seed([seed as uint]);
 
     for block_x in range(0, CHUNK_SIZE) {
@@ -138,6 +140,8 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64)
             }
         }
     }
+
+    let after_noise_time = extra::time::precise_time_ns();
 
     let mut vertices : ~[Vec3<f32>] = ~[];
     let mut normals : ~[Vec3<f32>] = ~[];
@@ -176,6 +180,8 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64)
             }
         }
     }
+
+    let after_mesh_time = extra::time::precise_time_ns();
 
     let mut vao = 0;
     let mut vertex_buffer = 0;
@@ -228,6 +234,13 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64)
     }
 
     gl::BindVertexArray(0);
+
+    let after_buffer_time = extra::time::precise_time_ns();
+
+    println!("chunk loading profile (us): noise={} mesh={} buffer={}",
+             (after_noise_time - start_time)/1000,
+             (after_mesh_time - after_noise_time)/1000,
+             (after_buffer_time - after_mesh_time)/1000)
 
     return ~Chunk {
         x: chunk_x,
