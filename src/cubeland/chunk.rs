@@ -130,6 +130,12 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64)
     let mut normals : ~[Vec3<f32>] = ~[];
     let mut elements : ~[GLuint] = ~[];
 
+    static expected_vertices : uint = 70000;
+    static expected_elements : uint = expected_vertices * 3 / 2;
+    vertices.reserve(expected_vertices);
+    normals.reserve(expected_vertices);
+    elements.reserve(expected_elements);
+
     let mut idx = 0;
 
     for x in range(0, CHUNK_SIZE) {
@@ -220,10 +226,11 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64)
 
     let after_buffer_time = extra::time::precise_time_ns();
 
-    println!("chunk loading profile (us): noise={} mesh={} buffer={}",
+    println!("chunk load: noise={}us mesh={}us buffer={}us num_vertices={} num_elements={}",
              (after_noise_time - start_time)/1000,
              (after_mesh_time - after_noise_time)/1000,
-             (after_buffer_time - after_mesh_time)/1000)
+             (after_buffer_time - after_mesh_time)/1000,
+             vertices.len(), elements.len())
 
     return ~Chunk {
         x: chunk_x,
