@@ -93,11 +93,6 @@ struct Face {
     vertices: [Vec3<f32>, ..4],
 }
 
-#[inline]
-fn fast_add_vec3f(a: Vec3<f32>, b: Vec3<f32>) -> Vec3<f32> {
-    Vec3{x: a.x + b.x, y: a.y + b.y, z: a.z + b.z }
-}
-
 pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64) -> ~Chunk {
     let def_block = Block { visible: false };
     let mut map = ~Map {
@@ -149,13 +144,13 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64)
                 let block_position = Vec3 { x: x as f32, y: y as f32, z: z as f32 };
 
                 for face in faces.iter() {
-                    let neighbor_position = fast_add_vec3f(block_position, face.normal);
+                    let neighbor_position = block_position.add_v(&face.normal);
                     if block_exists(neighbor_position.x as int, neighbor_position.y as int, neighbor_position.z as int) {
                         continue;
                     }
 
-                    for &v in face.vertices.iter() {
-                        vertices.push(fast_add_vec3f(v, block_position));
+                    for v in face.vertices.iter() {
+                        vertices.push(v.add_v(&block_position));
                         normals.push(face.normal);
                     }
 
