@@ -98,7 +98,7 @@ impl Drop for Chunk {
 }
 
 struct Block {
-    color: Vec4<f32>,
+    visible: bool,
 }
 
 struct Map {
@@ -111,7 +111,7 @@ struct Face {
 }
 
 pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64) -> ~Chunk {
-    let def_block = Block { color: Vec4::<f32>::new(0.0, 0.0, 0.0, 0.0) };
+    let def_block = Block { visible: false };
     let mut map = ~Map {
         blocks: [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
     };
@@ -121,7 +121,7 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64)
             return false;
         }
 
-        map.blocks[x][y][z].color.w == 1.0f32
+        map.blocks[x][y][z].visible
     };
 
     let perlin = Perlin::from_seed([seed as uint]);
@@ -134,8 +134,7 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64)
             ]);
             let height = ((noise + 1.0) * (CHUNK_SIZE as f64 / 8.0)) as uint;
             for y in range(0, height) {
-                let color = Vec4::<f32>::new(0.2, 0.8, 0.2, 1.0);
-                map.blocks[block_x][y][block_z] = Block { color: color };
+                map.blocks[block_x][y][block_z] = Block { visible: true };
             }
         }
     }
@@ -151,7 +150,7 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64)
             for z in range(0, CHUNK_SIZE) {
                 let block = &map.blocks[x][y][z];
 
-                if (block.color.w == 0.0f32) {
+                if (!block.visible) {
                     continue;
                 }
 
