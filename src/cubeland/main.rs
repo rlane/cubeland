@@ -127,9 +127,8 @@ fn main() {
         let (fb_size_port, fb_size_chan): (Port<(u32,u32)>, Chan<(u32,u32)>) = std::comm::Chan::new();
         window.set_framebuffer_size_callback(~FramebufferSizeContext { chan: fb_size_chan });
 
-        let start_time = extra::time::precise_time_ns();
-        let mut last_frame_time = start_time;
-        let mut num_frames = 0;
+        let mut fps_display_limiter = ratelimiter::RateLimiter::new(1000*1000*1000);
+        let mut fps_frame_counter = 0;
 
         let mut camera_position = Vec3::<f32>::new(0.0f32, 20.0f32, 40.0f32);
 
@@ -268,12 +267,10 @@ fn main() {
                 }
             }
 
-            let cur_time = extra::time::precise_time_ns();
-            num_frames += 1;
-            if (cur_time - last_frame_time) > (1000*1000*1000) {
-                println!("{} frames per second", num_frames);
-                num_frames = 0;
-                last_frame_time = cur_time;
+            fps_frame_counter += 1;
+            if fps_display_limiter.limit() {
+                println!("{} frames per second", fps_frame_counter);
+                fps_frame_counter = 0;
             }
 
             let frame_end_time = extra::time::precise_time_ns();
