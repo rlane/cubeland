@@ -38,27 +38,10 @@ impl<'a> ChunkLoader<'a> {
         }
     }
 
-    pub fn update(&mut self, x : i64, z: i64) {
-        let mask : i64 = !(CHUNK_SIZE as i64 - 1);
-        let mut loaded = false;
-
-        for ix in std::iter::range_inclusive(-(WORLD_SIZE as i64)/2, (WORLD_SIZE as i64)/2) {
-            for iz in std::iter::range_inclusive(-(WORLD_SIZE as i64)/2, (WORLD_SIZE as i64)/2) {
-                let cx : i64 = (x & mask) + ix*CHUNK_SIZE as i64;
-                let cz : i64 = (z & mask) + iz*CHUNK_SIZE as i64;
-                if !self.cache.contains_key(&(cx, cz)) {
-                    if !loaded {
-                        println!("loading chunk ({}, {})", cx, cz);
-                        let chunk = chunk_gen(self.graphics_resources, self.seed, cx, cz);
-                        self.cache.insert((cx, cz), chunk);
-                        loaded = true;
-                    }
-                } else {
-                    let chunk = self.cache.find_mut(&(cx, cz)).unwrap();
-                    chunk.touch();
-                }
-            }
-        }
+    pub fn load(&mut self, cx : i64, cz: i64) {
+        println!("loading chunk ({}, {})", cx, cz);
+        let chunk = chunk_gen(self.graphics_resources, self.seed, cx, cz);
+        self.cache.insert((cx, cz), chunk);
 
         while self.cache.len() > MAX_CHUNKS {
             let (&k, _) = self.cache.iter().min_by(|&(_, chunk)| chunk.used_time).unwrap();
@@ -80,7 +63,7 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    fn touch(&mut self) {
+    pub fn touch(&mut self) {
         self.used_time = extra::time::precise_time_ns();
     }
 }

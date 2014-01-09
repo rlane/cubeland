@@ -13,6 +13,7 @@ use std::str;
 use std::vec;
 use std::libc;
 use std::io::Timer;
+use std::hashmap::HashSet;
 
 use gl::types::*;
 
@@ -133,6 +134,8 @@ fn main() {
 
         //let mut timer = Timer::new().unwrap();
 
+        let mut needed_chunks : HashSet<(i64, i64)> = HashSet::new();
+
         while !window.should_close() {
             let frame_start_time = extra::time::precise_time_ns();
 
@@ -211,30 +214,55 @@ fn main() {
             let absolute_camera_velocity = inv_camera_rotation.mul_v(&camera_velocity).mul_s(0.5f32);
             camera_position.add_self_v(&absolute_camera_velocity);
 
-            for (_, chunk) in chunk_loader.cache.iter() {
-                let chunk_translation = Mat4::<f32>::from_cols(
-                    Vec4::<f32>::unit_x(),
-                    Vec4::<f32>::unit_y(),
-                    Vec4::<f32>::unit_z(),
-                    Vec4::<f32>::new(chunk.x as f32, 0.0f32, chunk.z as f32, 1.0f32));
+            let coords = visible_chunks(camera_position.x as i64,
+                                        camera_position.z as i64);
 
-                let modelview = camera.mul_m(&chunk_translation);
+            for &(cx, cz) in coords.iter() {
+                match chunk_loader.cache.find_mut(&(cx, cz)) {
+                    Some(chunk) => {
+                        chunk.touch();
 
-                gl::BindVertexArray(chunk.vao);
+                        let chunk_translation = Mat4::<f32>::from_cols(
+                            Vec4::<f32>::unit_x(),
+                            Vec4::<f32>::unit_y(),
+                            Vec4::<f32>::unit_z(),
+                            Vec4::<f32>::new(chunk.x as f32, 0.0f32, chunk.z as f32, 1.0f32));
 
-                unsafe {
-                    gl::UniformMatrix4fv(graphics_resources.uniform_modelview, 1, gl::FALSE, cast::transmute(&modelview));
-                    gl::DrawElements(gl::TRIANGLES, chunk.num_elements as i32, gl::UNSIGNED_INT, ptr::null());
+                        let modelview = camera.mul_m(&chunk_translation);
+
+                        gl::BindVertexArray(chunk.vao);
+
+                        unsafe {
+                            gl::UniformMatrix4fv(graphics_resources.uniform_modelview, 1, gl::FALSE, cast::transmute(&modelview));
+                            gl::DrawElements(gl::TRIANGLES, chunk.num_elements as i32, gl::UNSIGNED_INT, ptr::null());
+                        }
+
+                        gl::BindVertexArray(0);
+                    },
+                    None => {
+                        needed_chunks.insert((cx, cz));
+                    }
                 }
-
-                gl::BindVertexArray(0);
             }
 
             window.swap_buffers();
 
             check_gl("main loop");
 
-            chunk_loader.update(camera_position.x as i64, camera_position.z as i64);
+            let mut loaded = None;
+
+            for &(cx, cz) in needed_chunks.iter() {
+                chunk_loader.load(cx, cz);
+                loaded = Some((cx, cz));
+                break;
+            }
+
+            match loaded {
+                Some((cx, cz)) => {
+                    needed_chunks.remove(&(cx, cz));
+                },
+                None => {}
+            }
 
             let cur_time = extra::time::precise_time_ns();
             num_frames += 1;
@@ -251,6 +279,19 @@ fn main() {
             }
         }
     }
+}
+
+fn visible_chunks(x: i64, z: i64) -> ~[(i64, i64)] {
+    let mask : i64 = !(CHUNK_SIZE as i64 - 1);
+    let mut coords = ~[];
+    for ix in std::iter::range_inclusive(-(WORLD_SIZE as i64)/2, (WORLD_SIZE as i64)/2) {
+        for iz in std::iter::range_inclusive(-(WORLD_SIZE as i64)/2, (WORLD_SIZE as i64)/2) {
+            let cx : i64 = (x & mask) + ix*CHUNK_SIZE as i64;
+            let cz : i64 = (z & mask) + iz*CHUNK_SIZE as i64;
+            coords.push((cx, cz));
+        }
+    }
+    coords
 }
 
 fn load_graphics_resources() -> GraphicsResources {
