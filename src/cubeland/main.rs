@@ -186,7 +186,7 @@ fn main() {
 
             gl::Viewport(0,0, window_width as GLint, window_height as GLint);
 
-            gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+            gl::ClearColor(0.0, 0.75, 1.0, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
             let projection = cgmath::projection::perspective(
