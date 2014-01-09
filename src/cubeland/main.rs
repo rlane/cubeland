@@ -82,6 +82,7 @@ pub static CHUNK_SIZE: uint = 64;
 pub static WORLD_SEED: u32 = 42;
 
 static FRAME_TIME_TARGET_MS : u64 = 16;
+static CAMERA_SPEED : f32 = 30.0f32;
 
 struct GraphicsResources {
     program: GLuint,
@@ -137,6 +138,8 @@ fn main() {
         let mut needed_chunks : HashSet<(i64, i64)> = HashSet::new();
         let mut load_limiter = ratelimiter::RateLimiter::new(1000*1000*100);
 
+        let mut last_tick = extra::time::precise_time_ns();
+
         while !window.should_close() {
             let frame_start_time = extra::time::precise_time_ns();
 
@@ -188,6 +191,10 @@ fn main() {
                 _ => {}
             }
 
+            let now = extra::time::precise_time_ns();
+            let tick_length = (now - last_tick) as f32 / (1000 * 1000 * 1000) as f32;
+            last_tick = now;
+
             gl::Viewport(0,0, window_width as GLint, window_height as GLint);
 
             gl::ClearColor(0.0, 0.75, 1.0, 1.0);
@@ -212,7 +219,7 @@ fn main() {
             let camera = camera_rotation_x.mul_m(&camera_rotation_y).mul_m(&camera_translation);
 
             let inv_camera_rotation = Mat3::<f32>::from_euler(rad(-camera_angle_x as f32), rad(-camera_angle_y as f32), rad(0.0f32));
-            let absolute_camera_velocity = inv_camera_rotation.mul_v(&camera_velocity).mul_s(0.5f32);
+            let absolute_camera_velocity = inv_camera_rotation.mul_v(&camera_velocity).mul_s(CAMERA_SPEED).mul_s(tick_length);
             camera_position.add_self_v(&absolute_camera_velocity);
 
             let coords = visible_chunks(camera_position.x as i64,
