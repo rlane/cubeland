@@ -49,6 +49,8 @@ const vec4 light_diffuse = vec4(0.8, 0.8, 0.8, 0.0);
 const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
 
 const float planet_radius = 6371000.0 / 10000.0;
+const float fog_density = 0.007;
+const vec4 fog_color = vec4(0.0, 0.75, 1.0, 1.0);
 
 void main() {
     vec4 eye_position = modelview * vec4(position, 1.0);
@@ -64,6 +66,9 @@ void main() {
     vec4 ambient_diffuse_factor = diffuse_factor + light_ambient;
 
     frag_color = ambient_diffuse_factor * obj_diffuse;
+
+    float fog_factor = clamp(exp2(-pow(length(eye_position), 2) * pow(fog_density, 2) * 1.44), 0.0, 1.0);
+    frag_color = mix(fog_color, frag_color, fog_factor);
 }
 ";
 
