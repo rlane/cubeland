@@ -30,6 +30,7 @@ use cgmath::angle::rad;
 extern {}
 
 mod chunk;
+mod ratelimiter;
 
 static vertex_shader_src : &'static str = r"
 #version 110
@@ -135,6 +136,7 @@ fn main() {
         //let mut timer = Timer::new().unwrap();
 
         let mut needed_chunks : HashSet<(i64, i64)> = HashSet::new();
+        let mut load_limiter = ratelimiter::RateLimiter::new(1000*1000*100);
 
         while !window.should_close() {
             let frame_start_time = extra::time::precise_time_ns();
@@ -249,19 +251,21 @@ fn main() {
 
             check_gl("main loop");
 
-            let mut loaded = None;
+            if !needed_chunks.is_empty() && load_limiter.limit() {
+                let mut loaded = None;
 
-            for &(cx, cz) in needed_chunks.iter() {
-                chunk_loader.load(cx, cz);
-                loaded = Some((cx, cz));
-                break;
-            }
+                for &(cx, cz) in needed_chunks.iter() {
+                    chunk_loader.load(cx, cz);
+                    loaded = Some((cx, cz));
+                    break;
+                }
 
-            match loaded {
-                Some((cx, cz)) => {
-                    needed_chunks.remove(&(cx, cz));
-                },
-                None => {}
+                match loaded {
+                    Some((cx, cz)) => {
+                        needed_chunks.remove(&(cx, cz));
+                    },
+                    None => {}
+                }
             }
 
             let cur_time = extra::time::precise_time_ns();
