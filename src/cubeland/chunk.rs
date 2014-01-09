@@ -42,8 +42,8 @@ impl<'a> ChunkLoader<'a> {
         let mask : i64 = !(CHUNK_SIZE as i64 - 1);
         let mut loaded = false;
 
-        for ix in range(-(WORLD_SIZE as i64)/2, (WORLD_SIZE as i64)/2) {
-            for iz in range(-(WORLD_SIZE as i64)/2, (WORLD_SIZE as i64)/2) {
+        for ix in std::iter::range_inclusive(-(WORLD_SIZE as i64)/2, (WORLD_SIZE as i64)/2) {
+            for iz in std::iter::range_inclusive(-(WORLD_SIZE as i64)/2, (WORLD_SIZE as i64)/2) {
                 let cx : i64 = (x & mask) + ix*CHUNK_SIZE as i64;
                 let cz : i64 = (z & mask) + iz*CHUNK_SIZE as i64;
                 if !self.cache.contains_key(&(cx, cz)) {
