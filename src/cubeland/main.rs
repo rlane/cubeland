@@ -48,8 +48,8 @@ const vec3 light_direction = vec3(0.408248, -0.816497, 0.408248);
 const vec4 light_diffuse = vec4(0.8, 0.8, 0.8, 0.0);
 const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
 
-const float planet_radius = 6371000.0 / 10000.0;
-const float fog_density = 0.007;
+const float planet_radius = 6371000.0 / 5000.0;
+const float fog_density = 0.003;
 const vec4 fog_color = vec4(0.0, 0.75, 1.0, 1.0);
 
 void main() {
@@ -88,7 +88,7 @@ pub static WORLD_SEED: u32 = 42;
 
 static FRAME_TIME_TARGET_MS : u64 = 16;
 static CAMERA_SPEED : f32 = 30.0f32;
-static LOD_FACTOR : f32 = 100.0f32;
+static LOD_FACTOR : f32 = 150.0f32;
 
 struct GraphicsResources {
     program: GLuint,
@@ -142,7 +142,7 @@ fn main() {
         //let mut timer = Timer::new().unwrap();
 
         let mut needed_chunks : HashSet<(i64, i64, uint)> = HashSet::new();
-        let mut load_limiter = ratelimiter::RateLimiter::new(1000*1000*100);
+        let mut load_limiter = ratelimiter::RateLimiter::new(1000*1000*10);
 
         let mut last_tick = extra::time::precise_time_ns();
 
