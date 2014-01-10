@@ -94,6 +94,7 @@ struct Face {
 }
 
 pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
+    let step = std::num::min(16u, 1 << lod);
     let def_block = Block { visible: false };
     let mut map = ~Map {
         blocks: [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
@@ -111,8 +112,8 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64,
 
     let perlin = Perlin::from_seed([seed as uint]);
 
-    for block_x in range(0, CHUNK_SIZE) {
-        for block_z in range(0, CHUNK_SIZE) {
+    for block_x in std::iter::range_step(0, CHUNK_SIZE, step) {
+        for block_z in std::iter::range_step(0, CHUNK_SIZE, step) {
             let noise = perlin.gen([
                 (chunk_x + block_x as i64) as f64 * 0.1,
                 (chunk_z + block_z as i64) as f64 * 0.1
@@ -136,7 +137,6 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64,
     normals.reserve(expected_vertices);
     elements.reserve(expected_elements);
 
-    let step = std::num::min(16u, 1 << lod);
     let mut idx = 0;
 
     for x in std::iter::range_step(0, CHUNK_SIZE, step) {
