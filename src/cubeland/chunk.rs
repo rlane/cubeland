@@ -101,7 +101,11 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64,
     };
 
     let block_exists = |x: int, y: int, z: int| -> bool {
-        if x < 0 || x >= CHUNK_SIZE as int || y < 0 || y >= CHUNK_SIZE as int || z < 0 || z >= CHUNK_SIZE as int {
+        if y < 0 {
+            return true;
+        }
+
+        if x < 0 || x >= CHUNK_SIZE as int || y >= CHUNK_SIZE as int || z < 0 || z >= CHUNK_SIZE as int {
             return false;
         }
 
@@ -118,7 +122,7 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64,
                 (chunk_x + block_x as i64) as f64 * 0.1,
                 (chunk_z + block_z as i64) as f64 * 0.1
             ]);
-            let height = ((noise + 1.0) * (CHUNK_SIZE as f64 / 8.0)) as uint;
+            let height = std::num::max(((noise + 1.0) * (CHUNK_SIZE as f64 / 8.0)), 1.0) as uint;
             for y in range(0, height) {
                 map.blocks[block_x][y][block_z] = Block { visible: true };
             }
