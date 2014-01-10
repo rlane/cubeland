@@ -26,6 +26,7 @@ use cgmath::vector::Vec3;
 use cgmath::vector::Vec4;
 use cgmath::angle::rad;
 
+#[cfg(target_os = "linux")]
 #[link(name="GLU")]
 extern {}
 
