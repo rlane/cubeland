@@ -23,24 +23,22 @@ use GraphicsResources;
 
 static MAX_CHUNKS : uint = (VISIBLE_RADIUS*2)*(VISIBLE_RADIUS*2)*2;
 
-pub struct ChunkLoader<'a> {
+pub struct ChunkLoader {
     seed : u32,
-    graphics_resources : &'a GraphicsResources,
     cache : HashMap<(i64, i64, uint), ~Chunk>
 }
 
-impl<'a> ChunkLoader<'a> {
-    pub fn new<'a>(seed : u32, graphics_resources : &'a GraphicsResources) -> ChunkLoader<'a> {
+impl ChunkLoader {
+    pub fn new(seed : u32) -> ChunkLoader {
         ChunkLoader {
             seed: seed,
-            graphics_resources : graphics_resources,
             cache: HashMap::new(),
         }
     }
 
     pub fn load(&mut self, cx : i64, cz: i64, lod: uint) {
         println!("loading chunk ({}, {}) lod={}", cx, cz, lod);
-        let chunk = chunk_gen(self.graphics_resources, self.seed, cx, cz, lod);
+        let chunk = chunk_gen(self.seed, cx, cz, lod);
         self.cache.insert((cx, cz, lod), chunk);
 
         while self.cache.len() > MAX_CHUNKS {
@@ -54,7 +52,6 @@ pub struct Chunk {
     x: i64,
     z: i64,
     map: ~Map,
-    vao: GLuint,
     vertex_buffer: GLuint,
     normal_buffer: GLuint,
     element_buffer: GLuint,
@@ -66,6 +63,26 @@ impl Chunk {
     pub fn touch(&mut self) {
         self.used_time = extra::time::precise_time_ns();
     }
+
+    pub fn bind_arrays(&self, res: &GraphicsResources) {
+        unsafe {
+            let vert_attr = "position".with_c_str(|ptr| gl::GetAttribLocation(res.program, ptr));
+            assert!(vert_attr as u32 != gl::INVALID_VALUE);
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.vertex_buffer);
+            gl::EnableVertexAttribArray(vert_attr as GLuint);
+            gl::VertexAttribPointer(vert_attr as GLuint, 3, gl::FLOAT,
+                                    gl::FALSE as GLboolean, 0, ptr::null());
+
+            let normal_attr = "normal".with_c_str(|ptr| gl::GetAttribLocation(res.program, ptr));
+            assert!(normal_attr as u32 != gl::INVALID_VALUE);
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.normal_buffer);
+            gl::EnableVertexAttribArray(normal_attr as GLuint);
+            gl::VertexAttribPointer(normal_attr as GLuint, 3, gl::FLOAT,
+                                    gl::FALSE as GLboolean, 0, ptr::null());
+
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.element_buffer);
+        }
+    }
 }
 
 impl Drop for Chunk {
@@ -75,7 +92,6 @@ impl Drop for Chunk {
             gl::DeleteBuffers(1, &self.vertex_buffer);
             gl::DeleteBuffers(1, &self.normal_buffer);
             gl::DeleteBuffers(1, &self.element_buffer);
-            gl::DeleteVertexArrays(1, &self.vao);
         }
     }
 }
@@ -93,7 +109,7 @@ struct Face {
     vertices: [Vec3<f32>, ..4],
 }
 
-pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
+pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
     let step = std::num::min(16u, 1 << lod);
     let def_block = Block { visible: false };
     let mut map = ~Map {
@@ -177,16 +193,11 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64,
 
     let after_mesh_time = extra::time::precise_time_ns();
 
-    let mut vao = 0;
     let mut vertex_buffer = 0;
     let mut normal_buffer = 0;
     let mut element_buffer = 0;
 
     unsafe {
-        // Create Vertex Array Object
-        gl::GenVertexArrays(1, &mut vao);
-        gl::BindVertexArray(vao);
-
         // Create a Vertex Buffer Object and copy the vertex data to it
         gl::GenBuffers(1, &mut vertex_buffer);
         gl::BindBuffer(gl::ARRAY_BUFFER, vertex_buffer);
@@ -210,24 +221,7 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64,
                         (elements.len() * std::mem::size_of::<GLuint>()) as GLsizeiptr,
                         cast::transmute(&elements[0]),
                         gl::STATIC_DRAW);
-
-        // Specify the layout of the vertex data
-        let vert_attr = "position".with_c_str(|ptr| gl::GetAttribLocation(res.program, ptr));
-        assert!(vert_attr as u32 != gl::INVALID_VALUE);
-        gl::BindBuffer(gl::ARRAY_BUFFER, vertex_buffer);
-        gl::EnableVertexAttribArray(vert_attr as GLuint);
-        gl::VertexAttribPointer(vert_attr as GLuint, 3, gl::FLOAT,
-                                gl::FALSE as GLboolean, 0, ptr::null());
-
-        let normal_attr = "normal".with_c_str(|ptr| gl::GetAttribLocation(res.program, ptr));
-        assert!(normal_attr as u32 != gl::INVALID_VALUE);
-        gl::BindBuffer(gl::ARRAY_BUFFER, normal_buffer);
-        gl::EnableVertexAttribArray(normal_attr as GLuint);
-        gl::VertexAttribPointer(normal_attr as GLuint, 3, gl::FLOAT,
-                                gl::FALSE as GLboolean, 0, ptr::null());
     }
-
-    gl::BindVertexArray(0);
 
     let after_buffer_time = extra::time::precise_time_ns();
 
@@ -241,7 +235,6 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64,
         x: chunk_x,
         z: chunk_z,
         map: map,
-        vao: vao,
         vertex_buffer: vertex_buffer,
         normal_buffer: normal_buffer,
         element_buffer: element_buffer,

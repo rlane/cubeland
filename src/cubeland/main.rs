@@ -127,7 +127,7 @@ fn main() {
 
         gl::UseProgram(graphics_resources.program);
 
-        let mut chunk_loader = chunk::ChunkLoader::new(WORLD_SEED, &graphics_resources);
+        let mut chunk_loader = chunk::ChunkLoader::new(WORLD_SEED);
 
         window.set_key_callback(~KeyContext);
 
@@ -259,14 +259,12 @@ fn main() {
 
                         let modelview = camera.mul_m(&chunk_translation);
 
-                        gl::BindVertexArray(chunk.vao);
+                        chunk.bind_arrays(&graphics_resources);
 
                         unsafe {
                             gl::UniformMatrix4fv(graphics_resources.uniform_modelview, 1, gl::FALSE, cast::transmute(&modelview));
                             gl::DrawElements(gl::TRIANGLES, chunk.num_elements as i32, gl::UNSIGNED_INT, ptr::null());
                         }
-
-                        gl::BindVertexArray(0);
                     },
                     None => {}
                 }
