@@ -148,10 +148,10 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
     for block_x in std::iter::range_step(0, CHUNK_SIZE, step) {
         for block_z in std::iter::range_step(0, CHUNK_SIZE, step) {
             let noise = perlin.gen([
-                (chunk_x + block_x as i64) as f64 * 0.1,
-                (chunk_z + block_z as i64) as f64 * 0.1
+                (chunk_x + block_x as i64) as f64 * 0.07,
+                (chunk_z + block_z as i64) as f64 * 0.04
             ]);
-            let height = std::num::max(((noise + 1.0) * (CHUNK_SIZE as f64 / 8.0)), 1.0) as uint;
+            let height = std::num::max(((noise + 1.0) * (CHUNK_SIZE as f64 / 4.0)), 1.0) as uint;
             for y in range(0, height) {
                 map.blocks[block_x][y][block_z] = Block { visible: true };
             }

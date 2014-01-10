@@ -152,7 +152,7 @@ fn main() {
         let mut fps_display_limiter = ratelimiter::RateLimiter::new(1000*1000*1000);
         let mut fps_frame_counter = 0;
 
-        let mut camera_position = Vec3::<f32>::new(0.0f32, 20.0f32, 40.0f32);
+        let mut camera_position = Vec3::<f32>::new(0.0f32, 30.0f32, 40.0f32);
 
         //let mut timer = Timer::new().unwrap();
 
