@@ -56,8 +56,8 @@ void main() {
     vec4 eye_position = modelview * vec4(position, 1.0);
 
     /* Curvature of the planet */
-    float distance_squared = pow(eye_position.x, 2) + pow(eye_position.z, 2);
-    eye_position.y -= planet_radius - sqrt(pow(planet_radius, 2) - distance_squared);
+    float distance_squared = pow(eye_position.x, 2.0) + pow(eye_position.z, 2.0);
+    eye_position.y -= planet_radius - sqrt(pow(planet_radius, 2.0) - distance_squared);
 
     gl_Position = projection * eye_position;
 
@@ -67,7 +67,7 @@ void main() {
 
     frag_color = ambient_diffuse_factor * obj_diffuse;
 
-    float fog_factor = clamp(exp2(-pow(length(eye_position), 2) * pow(fog_density, 2) * 1.44), 0.0, 1.0);
+    float fog_factor = clamp(exp2(-pow(length(eye_position), 2.0) * pow(fog_density, 2.0) * 1.44), 0.0, 1.0);
     frag_color = mix(fog_color, frag_color, fog_factor);
 }
 ";
