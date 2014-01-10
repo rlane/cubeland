@@ -27,7 +27,6 @@ use gl::types::*;
 
 use cgmath::vector::Vector;
 use cgmath::vector::Vec3;
-use cgmath::vector::Vec4;
 
 use noise::Perlin;
 
