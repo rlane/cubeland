@@ -18,15 +18,15 @@ use cgmath::vector::Vec4;
 use noise::Perlin;
 
 use CHUNK_SIZE;
-use WORLD_SIZE;
+use VISIBLE_RADIUS;
 use GraphicsResources;
 
-static MAX_CHUNKS : uint = 32;
+static MAX_CHUNKS : uint = (VISIBLE_RADIUS*2)*(VISIBLE_RADIUS*2)*2;
 
 pub struct ChunkLoader<'a> {
     seed : u32,
     graphics_resources : &'a GraphicsResources,
-    cache : HashMap<(i64, i64), ~Chunk>
+    cache : HashMap<(i64, i64, uint), ~Chunk>
 }
 
 impl<'a> ChunkLoader<'a> {
@@ -38,10 +38,10 @@ impl<'a> ChunkLoader<'a> {
         }
     }
 
-    pub fn load(&mut self, cx : i64, cz: i64) {
-        println!("loading chunk ({}, {})", cx, cz);
-        let chunk = chunk_gen(self.graphics_resources, self.seed, cx, cz);
-        self.cache.insert((cx, cz), chunk);
+    pub fn load(&mut self, cx : i64, cz: i64, lod: uint) {
+        println!("loading chunk ({}, {}) lod={}", cx, cz, lod);
+        let chunk = chunk_gen(self.graphics_resources, self.seed, cx, cz, lod);
+        self.cache.insert((cx, cz, lod), chunk);
 
         while self.cache.len() > MAX_CHUNKS {
             let (&k, _) = self.cache.iter().min_by(|&(_, chunk)| chunk.used_time).unwrap();
@@ -93,7 +93,7 @@ struct Face {
     vertices: [Vec3<f32>, ..4],
 }
 
-pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64) -> ~Chunk {
+pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
     let def_block = Block { visible: false };
     let mut map = ~Map {
         blocks: [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
@@ -136,11 +136,12 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64)
     normals.reserve(expected_vertices);
     elements.reserve(expected_elements);
 
+    let step = std::num::min(16u, 1 << lod);
     let mut idx = 0;
 
-    for x in range(0, CHUNK_SIZE) {
-        for y in range(0, CHUNK_SIZE) {
-            for z in range(0, CHUNK_SIZE) {
+    for x in std::iter::range_step(0, CHUNK_SIZE, step) {
+        for y in std::iter::range_step(0, CHUNK_SIZE, step) {
+            for z in std::iter::range_step(0, CHUNK_SIZE, step) {
                 let block = &map.blocks[x][y][z];
 
                 if (!block.visible) {
@@ -150,13 +151,13 @@ pub fn chunk_gen(res: &GraphicsResources, seed: u32, chunk_x: i64, chunk_z: i64)
                 let block_position = Vec3 { x: x as f32, y: y as f32, z: z as f32 };
 
                 for face in faces.iter() {
-                    let neighbor_position = block_position.add_v(&face.normal);
+                    let neighbor_position = block_position.add_v(&face.normal.mul_s(step as f32));
                     if block_exists(neighbor_position.x as int, neighbor_position.y as int, neighbor_position.z as int) {
                         continue;
                     }
 
                     for v in face.vertices.iter() {
-                        vertices.push(v.add_v(&block_position));
+                        vertices.push(v.mul_s(step as f32).add_v(&block_position));
                         normals.push(face.normal);
                     }
 

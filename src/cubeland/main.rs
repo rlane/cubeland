@@ -82,12 +82,13 @@ void main() {
 }
 ";
 
-pub static WORLD_SIZE: uint = 4;
+pub static VISIBLE_RADIUS: uint = 4;
 pub static CHUNK_SIZE: uint = 64;
 pub static WORLD_SEED: u32 = 42;
 
 static FRAME_TIME_TARGET_MS : u64 = 16;
 static CAMERA_SPEED : f32 = 30.0f32;
+static LOD_FACTOR : f32 = 100.0f32;
 
 struct GraphicsResources {
     program: GLuint,
@@ -140,7 +141,7 @@ fn main() {
 
         //let mut timer = Timer::new().unwrap();
 
-        let mut needed_chunks : HashSet<(i64, i64)> = HashSet::new();
+        let mut needed_chunks : HashSet<(i64, i64, uint)> = HashSet::new();
         let mut load_limiter = ratelimiter::RateLimiter::new(1000*1000*100);
 
         let mut last_tick = extra::time::precise_time_ns();
@@ -230,8 +231,23 @@ fn main() {
             let coords = visible_chunks(camera_position.x as i64,
                                         camera_position.z as i64);
 
-            for &(cx, cz) in coords.iter() {
-                match chunk_loader.cache.find_mut(&(cx, cz)) {
+            for &(cx, cz, lod) in coords.iter() {
+                let mut found_lod = 0;
+
+                if !chunk_loader.cache.contains_key(&(cx, cz, lod)) {
+                    needed_chunks.insert((cx, cz, lod));
+
+                    while found_lod < 5 {
+                        if chunk_loader.cache.contains_key(&(cx, cz, found_lod)) {
+                            break;
+                        }
+                        found_lod += 1;
+                    }
+                } else {
+                    found_lod = lod;
+                }
+
+                match chunk_loader.cache.find_mut(&(cx, cz, found_lod)) {
                     Some(chunk) => {
                         chunk.touch();
 
@@ -252,9 +268,7 @@ fn main() {
 
                         gl::BindVertexArray(0);
                     },
-                    None => {
-                        needed_chunks.insert((cx, cz));
-                    }
+                    None => {}
                 }
             }
 
@@ -265,15 +279,15 @@ fn main() {
             if !needed_chunks.is_empty() && load_limiter.limit() {
                 let mut loaded = None;
 
-                for &(cx, cz) in needed_chunks.iter() {
-                    chunk_loader.load(cx, cz);
-                    loaded = Some((cx, cz));
+                for &(cx, cz, lod) in needed_chunks.iter() {
+                    chunk_loader.load(cx, cz, lod);
+                    loaded = Some((cx, cz, lod));
                     break;
                 }
 
                 match loaded {
-                    Some((cx, cz)) => {
-                        needed_chunks.remove(&(cx, cz));
+                    Some((cx, cz, lod)) => {
+                        needed_chunks.remove(&(cx, cz, lod));
                     },
                     None => {}
                 }
@@ -294,14 +308,16 @@ fn main() {
     }
 }
 
-fn visible_chunks(x: i64, z: i64) -> ~[(i64, i64)] {
+fn visible_chunks(x: i64, z: i64) -> ~[(i64, i64, uint)] {
     let mask : i64 = !(CHUNK_SIZE as i64 - 1);
     let mut coords = ~[];
-    for ix in std::iter::range_inclusive(-(WORLD_SIZE as i64)/2, (WORLD_SIZE as i64)/2) {
-        for iz in std::iter::range_inclusive(-(WORLD_SIZE as i64)/2, (WORLD_SIZE as i64)/2) {
+    for ix in std::iter::range_inclusive(-(VISIBLE_RADIUS as i64), VISIBLE_RADIUS as i64) {
+        for iz in std::iter::range_inclusive(-(VISIBLE_RADIUS as i64), VISIBLE_RADIUS as i64) {
             let cx : i64 = (x & mask) + ix*CHUNK_SIZE as i64;
             let cz : i64 = (z & mask) + iz*CHUNK_SIZE as i64;
-            coords.push((cx, cz));
+            let dist : f32 = std::num::sqrt(std::num::pow((cx - x) as f32, 2.0f32) + std::num::pow((cz - z) as f32, 2.0f32));
+            let lod = (dist / LOD_FACTOR) as uint;
+            coords.push((cx, cz, lod));
         }
     }
     coords
