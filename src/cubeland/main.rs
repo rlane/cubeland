@@ -21,7 +21,6 @@ extern mod gl;
 extern mod cgmath;
 extern mod noise;
 
-use std::cast;
 use std::ptr;
 use std::str;
 use std::vec;
@@ -39,6 +38,7 @@ use cgmath::vector::Vector;
 use cgmath::vector::Vec3;
 use cgmath::vector::Vec4;
 use cgmath::angle::rad;
+use cgmath::ptr::Ptr;
 
 #[cfg(target_os = "linux")]
 #[link(name="GLU")]
@@ -227,7 +227,7 @@ fn main() {
                 0.1f32, 1000.0f32);
 
             unsafe {
-                gl::UniformMatrix4fv(graphics_resources.uniform_projection, 1, gl::FALSE, cast::transmute(&projection));
+                gl::UniformMatrix4fv(graphics_resources.uniform_projection, 1, gl::FALSE, projection.ptr());
             }
 
             let camera_translation = Mat4::<f32>::from_cols(
@@ -288,7 +288,7 @@ fn main() {
                         chunk.bind_arrays(&graphics_resources);
 
                         unsafe {
-                            gl::UniformMatrix4fv(graphics_resources.uniform_modelview, 1, gl::FALSE, cast::transmute(&modelview));
+                            gl::UniformMatrix4fv(graphics_resources.uniform_modelview, 1, gl::FALSE, modelview.ptr());
                             gl::DrawElements(gl::TRIANGLES, chunk.num_elements as i32, gl::UNSIGNED_INT, ptr::null());
                         }
                     },
