@@ -125,6 +125,8 @@ fn main() {
         let mut window_width = 800;
         let mut window_height = 600;
 
+        glfw::window_hint::samples(8);
+
         let window = glfw::Window::create(window_width, window_height, "Hello, I am a window.", glfw::Windowed)
             .expect("Failed to create GLFW window.");
 
