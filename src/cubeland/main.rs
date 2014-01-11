@@ -246,6 +246,9 @@ fn main() {
             let coords = visible_chunks(camera_position.x as i64,
                                         camera_position.z as i64);
 
+            let mut culled = 0;
+            let mut rendered = 0;
+
             for &(cx, cz, lod) in coords.iter() {
                 let mut found_lod = 0;
 
@@ -273,6 +276,14 @@ fn main() {
                             Vec4::<f32>::new(chunk.x as f32, 0.0f32, chunk.z as f32, 1.0f32));
 
                         let modelview = camera.mul_m(&chunk_translation);
+                        let modelviewprojection = projection.mul_m(&modelview);
+
+                        if view_frustum_cull(&modelviewprojection) {
+                            culled += 1;
+                            continue;
+                        }
+
+                        rendered += 1;
 
                         chunk.bind_arrays(&graphics_resources);
 
@@ -283,6 +294,10 @@ fn main() {
                     },
                     None => {}
                 }
+            }
+
+            if false {
+                println!("culled={} rendered={}", culled, rendered);
             }
 
             window.swap_buffers();
@@ -334,6 +349,49 @@ fn visible_chunks(x: i64, z: i64) -> ~[(i64, i64, uint)] {
         }
     }
     coords
+}
+
+fn view_frustum_cull(m : &Mat4<f32>) -> bool {
+    static L : f32 = CHUNK_SIZE as f32;
+
+    static vertices : [Vec4<f32>, ..8] = [
+        Vec4 { x: 0.0, y: 0.0, z: L,   w: 1.0 }, /* front bottom left */
+        Vec4 { x: L,   y: 0.0, z: L,   w: 1.0 }, /* front bottom right */
+        Vec4 { x: 0.0, y: L,   z: L,   w: 1.0 }, /* front top left */
+        Vec4 { x: L,   y: L,   z: L,   w: 1.0 }, /* front top right */
+        Vec4 { x: L,   y: 0.0, z: 0.0, w: 1.0 }, /* back bottom right */
+        Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }, /* back bottom left */
+        Vec4 { x: L,   y: L,   z: 0.0, w: 1.0 }, /* back top right */
+        Vec4 { x: 0.0, y: L,   z: 0.0, w: 1.0 }, /* back top left */
+    ];
+
+    let clip_vertices = vertices.map(|v| m.mul_v(v));
+
+    if clip_vertices.iter().all(|v| v.x < -v.w) {
+        return true;
+    }
+
+    if clip_vertices.iter().all(|v| v.x > v.w) {
+        return true;
+    }
+
+    if clip_vertices.iter().all(|v| v.y < -v.w) {
+        return true;
+    }
+
+    if clip_vertices.iter().all(|v| v.y > v.w) {
+        return true;
+    }
+
+    if clip_vertices.iter().all(|v| v.z < -v.w) {
+        return true;
+    }
+
+    if clip_vertices.iter().all(|v| v.z > v.w) {
+        return true;
+    }
+
+    return false;
 }
 
 fn load_graphics_resources() -> GraphicsResources {
