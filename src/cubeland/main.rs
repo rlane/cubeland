@@ -46,6 +46,7 @@ extern {}
 
 mod chunk;
 mod ratelimiter;
+mod texture;
 
 static vertex_shader_src : &'static str = r"
 #version 110
@@ -56,16 +57,16 @@ uniform mat4 projection;
 attribute vec3 position;
 attribute vec3 normal;
 
-varying vec4 frag_color;
+varying vec4 frag_diffuse_factor;
+varying vec2 frag_texcoord;
+varying float frag_fog_factor;
 
-const vec4 obj_diffuse = vec4(0.2, 0.6, 0.2, 1.0);
 const vec3 light_direction = vec3(0.408248, -0.816497, 0.408248);
 const vec4 light_diffuse = vec4(0.8, 0.8, 0.8, 0.0);
 const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
 
 const float planet_radius = 6371000.0 / 5000.0;
 const float fog_density = 0.003;
-const vec4 fog_color = vec4(0.0, 0.75, 1.0, 1.0);
 
 void main() {
     vec4 eye_position = modelview * vec4(position, 1.0);
@@ -78,22 +79,35 @@ void main() {
 
     vec4 diffuse_factor
         = max(-dot(normal, light_direction), 0.0) * light_diffuse;
-    vec4 ambient_diffuse_factor = diffuse_factor + light_ambient;
+    frag_diffuse_factor = diffuse_factor + light_ambient;
 
-    frag_color = ambient_diffuse_factor * obj_diffuse;
+    frag_fog_factor = clamp(exp2(-pow(length(eye_position), 2.0) * pow(fog_density, 2.0) * 1.44), 0.0, 1.0);
 
-    float fog_factor = clamp(exp2(-pow(length(eye_position), 2.0) * pow(fog_density, 2.0) * 1.44), 0.0, 1.0);
-    frag_color = mix(fog_color, frag_color, fog_factor);
+    if (normal.x != 0.0) {
+        frag_texcoord = position.yz;
+    } else if (normal.y != 0.0) {
+        frag_texcoord = position.xz;
+    } else {
+        frag_texcoord = position.xy;
+    }
+    frag_texcoord *= 16.0/1024.0;
 }
 ";
 
 static fragment_shader_src : &'static str = r"
 #version 110
 
-varying vec4 frag_color;
+const vec4 fog_color = vec4(0.0, 0.75, 1.0, 1.0);
+
+uniform sampler2D texture;
+
+varying vec4 frag_diffuse_factor;
+varying vec2 frag_texcoord;
+varying float frag_fog_factor;
 
 void main() {
-    gl_FragColor = frag_color;
+    gl_FragColor = texture2D(texture, frag_texcoord) * frag_diffuse_factor;
+    gl_FragColor = mix(fog_color, gl_FragColor, frag_fog_factor);
 }
 ";
 
@@ -107,8 +121,10 @@ static LOD_FACTOR : f32 = 150.0f32;
 
 struct GraphicsResources {
     program: GLuint,
+    texture: GLuint,
     uniform_modelview: GLint,
     uniform_projection: GLint,
+    uniform_texture: GLint,
 }
 
 #[start]
@@ -135,14 +151,21 @@ fn main() {
 
         gl::load_with(glfw::get_proc_address);
 
+        gl::Enable(gl::TEXTURE_2D);
         gl::Enable(gl::DEPTH_TEST);
         gl::Enable(gl::CULL_FACE);
 
         glfw::set_swap_interval(1);
 
         let graphics_resources = load_graphics_resources();
+        check_gl("after loading graphics resources");
 
         gl::UseProgram(graphics_resources.program);
+
+        gl::ActiveTexture(gl::TEXTURE0);
+        gl::Uniform1i(graphics_resources.uniform_texture, 0);
+
+        gl::BindTexture(gl::TEXTURE_2D, graphics_resources.texture);
 
         let mut chunk_loader = chunk::ChunkLoader::new(WORLD_SEED);
 
@@ -401,13 +424,18 @@ fn load_graphics_resources() -> GraphicsResources {
     let fs = compile_shader(fragment_shader_src.as_bytes(), gl::FRAGMENT_SHADER);
     let program = link_program(vs, fs);
 
+    let texture = texture::make_noise_texture();
+
     let uniform_modelview = unsafe { "modelview".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
     let uniform_projection = unsafe { "projection".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
+    let uniform_texture = unsafe { "texture".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
 
     return GraphicsResources {
         program: program,
+        texture: texture,
         uniform_modelview: uniform_modelview,
         uniform_projection: uniform_projection,
+        uniform_texture: uniform_texture,
     };
 
 }
