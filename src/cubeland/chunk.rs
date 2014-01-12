@@ -181,7 +181,17 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
                     continue;
                 }
 
-                let block_position = Vec3 { x: x as f32, y: y as f32, z: z as f32 };
+                let chunk_position = Vec3 {
+                    x: chunk_x as f32,
+                    y: 0.0f32,
+                    z: chunk_z as f32,
+                };
+
+                let block_position = Vec3 {
+                    x: x as f32,
+                    y: y as f32,
+                    z: z as f32,
+                };
 
                 for face in faces.iter() {
                     let neighbor_position = block_position.add_v(&face.normal.mul_s(step as f32));
@@ -190,7 +200,7 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
                     }
 
                     for v in face.vertices.iter() {
-                        vertices.push(v.mul_s(step as f32).add_v(&block_position));
+                        vertices.push(v.mul_s(step as f32).add_v(&block_position).add_v(&chunk_position));
                         normals.push(face.normal);
                     }
 

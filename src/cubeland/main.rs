@@ -288,16 +288,12 @@ fn main() {
                     Some(chunk) => {
                         chunk.touch();
 
-                        let chunk_translation = Mat4::<f32>::from_cols(
-                            Vec4::<f32>::unit_x(),
-                            Vec4::<f32>::unit_y(),
-                            Vec4::<f32>::unit_z(),
-                            Vec4::<f32>::new(chunk.x as f32, 0.0f32, chunk.z as f32, 1.0f32));
-
-                        let modelview = camera.mul_m(&chunk_translation);
+                        let modelview = camera;
                         let modelviewprojection = projection.mul_m(&modelview);
 
-                        if view_frustum_cull(&modelviewprojection) {
+                        let chunk_pos = Vec4::new(cx as f32, 0.0f32, cz as f32, 0.0f32);
+
+                        if view_frustum_cull(&modelviewprojection, &chunk_pos) {
                             culled += 1;
                             continue;
                         }
@@ -358,7 +354,7 @@ fn visible_chunks(x: i64, z: i64) -> ~[(i64, i64, uint)] {
     coords
 }
 
-fn view_frustum_cull(m : &Mat4<f32>) -> bool {
+fn view_frustum_cull(m : &Mat4<f32>, p: &Vec4<f32>) -> bool {
     static L : f32 = CHUNK_SIZE as f32;
 
     static vertices : [Vec4<f32>, ..8] = [
@@ -372,7 +368,7 @@ fn view_frustum_cull(m : &Mat4<f32>) -> bool {
         Vec4 { x: 0.0, y: L,   z: 0.0, w: 1.0 }, /* back top left */
     ];
 
-    let clip_vertices = vertices.map(|v| m.mul_v(v));
+    let clip_vertices = vertices.map(|v| m.mul_v(&p.add_v(v)));
 
     if clip_vertices.iter().all(|v| v.x < -v.w) {
         return true;
