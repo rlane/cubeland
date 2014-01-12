@@ -29,6 +29,8 @@ use noise::Perlin;
 use CHUNK_SIZE;
 
 pub fn make_noise_texture() -> GLuint {
+    let start_time = extra::time::precise_time_ns();
+
     let mut pixels : ~[Vec3<u8>] = ~[];
     static length : i32 = CHUNK_SIZE as i32 * 16;
     let perlin = Perlin::from_seed([43 as uint]);
@@ -66,6 +68,9 @@ pub fn make_noise_texture() -> GLuint {
     gl::GenerateMipmap(gl::TEXTURE_2D);
 
     gl::BindTexture(gl::TEXTURE_2D, 0);
+
+    let end_time = extra::time::precise_time_ns();
+    println!("texture gen: {}us", (end_time - start_time)/1000);
 
     tex
 }
