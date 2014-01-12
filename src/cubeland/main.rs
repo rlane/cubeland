@@ -50,69 +50,6 @@ mod ratelimiter;
 mod texture;
 mod spiral;
 
-static vertex_shader_src : &'static str = r"
-#version 110
-
-uniform mat4 modelview;
-uniform mat4 projection;
-
-attribute vec3 position;
-attribute vec3 normal;
-
-varying vec4 frag_diffuse_factor;
-varying vec2 frag_texcoord;
-varying float frag_fog_factor;
-
-const vec3 light_direction = vec3(0.408248, -0.816497, 0.408248);
-const vec4 light_diffuse = vec4(0.8, 0.8, 0.8, 0.0);
-const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
-
-const float planet_radius = 6371000.0 / 5000.0;
-const float fog_density = 0.003;
-
-void main() {
-    vec4 eye_position = modelview * vec4(position, 1.0);
-
-    /* Curvature of the planet */
-    float distance_squared = pow(eye_position.x, 2.0) + pow(eye_position.z, 2.0);
-    eye_position.y -= planet_radius - sqrt(pow(planet_radius, 2.0) - distance_squared);
-
-    gl_Position = projection * eye_position;
-
-    vec4 diffuse_factor
-        = max(-dot(normal, light_direction), 0.0) * light_diffuse;
-    frag_diffuse_factor = diffuse_factor + light_ambient;
-
-    frag_fog_factor = clamp(exp2(-pow(length(eye_position), 2.0) * pow(fog_density, 2.0) * 1.44), 0.0, 1.0);
-
-    if (normal.x != 0.0) {
-        frag_texcoord = position.yz;
-    } else if (normal.y != 0.0) {
-        frag_texcoord = position.xz;
-    } else {
-        frag_texcoord = position.xy;
-    }
-    frag_texcoord *= 16.0/128.0;
-}
-";
-
-static fragment_shader_src : &'static str = r"
-#version 110
-
-const vec4 fog_color = vec4(0.0, 0.75, 1.0, 1.0);
-
-uniform sampler2D texture;
-
-varying vec4 frag_diffuse_factor;
-varying vec2 frag_texcoord;
-varying float frag_fog_factor;
-
-void main() {
-    gl_FragColor = texture2D(texture, frag_texcoord) * frag_diffuse_factor;
-    gl_FragColor = mix(fog_color, gl_FragColor, frag_fog_factor);
-}
-";
-
 pub static VISIBLE_RADIUS: uint = 4;
 pub static CHUNK_SIZE: uint = 64;
 pub static WORLD_SEED: u32 = 42;
@@ -413,8 +350,10 @@ fn view_frustum_cull(m : &Mat4<f32>) -> bool {
 }
 
 fn load_graphics_resources() -> GraphicsResources {
-    let vs = compile_shader(vertex_shader_src.as_bytes(), gl::VERTEX_SHADER);
-    let fs = compile_shader(fragment_shader_src.as_bytes(), gl::FRAGMENT_SHADER);
+    let vs_src = std::io::fs::File::open_mode(&std::path::Path::new("main.vs.glsl"), std::io::Open, std::io::Read).unwrap().read_to_end();
+    let vs = compile_shader(vs_src, gl::VERTEX_SHADER);
+    let fs_src = std::io::fs::File::open_mode(&std::path::Path::new("main.fs.glsl"), std::io::Open, std::io::Read).unwrap().read_to_end();
+    let fs = compile_shader(fs_src, gl::FRAGMENT_SHADER);
     let program = link_program(vs, fs);
 
     let texture = texture::make_noise_texture();
