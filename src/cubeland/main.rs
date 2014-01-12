@@ -37,7 +37,7 @@ use cgmath::matrix::ToMat4;
 use cgmath::vector::Vector;
 use cgmath::vector::Vec3;
 use cgmath::vector::Vec4;
-use cgmath::angle::rad;
+use cgmath::angle::{rad, deg};
 use cgmath::ptr::Ptr;
 
 #[cfg(target_os = "linux")]
@@ -247,7 +247,7 @@ fn main() {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
             let projection = cgmath::projection::perspective(
-                rad(1.57f32),
+                deg(75.0f32),
                 window_width as f32 / window_height as f32,
                 0.1f32, 1000.0f32);
 
