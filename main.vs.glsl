@@ -1,7 +1,8 @@
 #version 120
 
-uniform mat4 modelview;
+uniform mat4 view;
 uniform mat4 projection;
+uniform vec3 camera_position;
 
 attribute vec3 position;
 attribute vec3 normal;
@@ -18,11 +19,13 @@ const float planet_radius = 6371000.0 / 5000.0;
 const float fog_density = 0.003;
 
 void main() {
-    vec4 eye_position = modelview * vec4(position, 1.0);
+    float horiz_dist = length(camera_position - position);
 
     /* Curvature of the planet */
-    float distance_squared = pow(eye_position.x, 2.0) + pow(eye_position.z, 2.0);
-    eye_position.y -= planet_radius - sqrt(pow(planet_radius, 2.0) - distance_squared);
+    vec3 curved_position = position;
+    curved_position.y -= planet_radius - sqrt(pow(planet_radius, 2.0) - pow(horiz_dist, 2.0));
+
+    vec4 eye_position = view * vec4(curved_position, 1.0);
 
     gl_Position = projection * eye_position;
 

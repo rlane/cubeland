@@ -63,8 +63,9 @@ struct GraphicsResources {
     vertex_shader: GLuint,
     fragment_shader: GLuint,
     texture: GLuint,
-    uniform_modelview: GLint,
+    uniform_view: GLint,
     uniform_projection: GLint,
+    uniform_camera_position: GLint,
     uniform_texture: GLint,
 }
 
@@ -260,6 +261,11 @@ fn main() {
             let absolute_camera_velocity = inv_camera_rotation.mul_v(&camera_velocity).mul_s(CAMERA_SPEED).mul_s(tick_length);
             camera_position.add_self_v(&absolute_camera_velocity);
 
+            unsafe {
+                gl::Uniform3fv(graphics_resources.uniform_camera_position, 1, camera_position.ptr());
+                gl::UniformMatrix4fv(graphics_resources.uniform_view, 1, gl::FALSE, camera.ptr());
+            }
+
             let clip_transform = projection.mul_m(&camera);
 
             let coords = visible_chunks(camera_position.x as i64,
@@ -302,7 +308,6 @@ fn main() {
                         chunk.bind_arrays(&graphics_resources);
 
                         unsafe {
-                            gl::UniformMatrix4fv(graphics_resources.uniform_modelview, 1, gl::FALSE, camera.ptr());
                             gl::DrawElements(gl::TRIANGLES, chunk.num_elements as i32, gl::UNSIGNED_INT, ptr::null());
                         }
                     },
@@ -416,8 +421,9 @@ fn load_graphics_resources() -> Result<GraphicsResources, ~str> {
 
     let texture = texture::make_noise_texture();
 
-    let uniform_modelview = unsafe { "modelview".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
+    let uniform_view = unsafe { "view".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
     let uniform_projection = unsafe { "projection".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
+    let uniform_camera_position = unsafe { "camera_position".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
     let uniform_texture = unsafe { "texture".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
 
     return Ok(GraphicsResources {
@@ -425,8 +431,9 @@ fn load_graphics_resources() -> Result<GraphicsResources, ~str> {
         vertex_shader: vs,
         fragment_shader: fs,
         texture: texture,
-        uniform_modelview: uniform_modelview,
+        uniform_view: uniform_view,
         uniform_projection: uniform_projection,
+        uniform_camera_position: uniform_camera_position,
         uniform_texture: uniform_texture,
     });
 
