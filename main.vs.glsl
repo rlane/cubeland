@@ -18,6 +18,8 @@ const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
 const float planet_radius = 6371000.0 / 5000.0;
 const float fog_density = 0.003;
 
+const vec4 grass_color = vec4(0.0, 1.0, 0.0, 1.0);
+
 void main() {
     float horiz_dist = length(camera_position - position);
 
@@ -31,7 +33,7 @@ void main() {
 
     vec4 diffuse_factor
         = max(-dot(normal, light_direction), 0.0) * light_diffuse;
-    frag_diffuse_factor = diffuse_factor + light_ambient;
+    frag_diffuse_factor = (diffuse_factor + light_ambient) * grass_color;
 
     frag_fog_factor = clamp(exp2(-pow(length(eye_position), 2.0) * pow(fog_density, 2.0) * 1.44), 0.0, 1.0);
 
