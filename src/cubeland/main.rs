@@ -92,7 +92,7 @@ void main() {
     } else {
         frag_texcoord = position.xy;
     }
-    frag_texcoord *= 16.0/1024.0;
+    frag_texcoord *= 16.0/128.0;
 }
 ";
 

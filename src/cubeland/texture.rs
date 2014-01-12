@@ -26,13 +26,11 @@ use cgmath::vector::Vec3;
 
 use noise::Perlin;
 
-use CHUNK_SIZE;
-
 pub fn make_noise_texture() -> GLuint {
     let start_time = extra::time::precise_time_ns();
 
     let mut pixels : ~[Vec3<u8>] = ~[];
-    static length : i32 = CHUNK_SIZE as i32 * 16;
+    static length : i32 = 128;
     let perlin = Perlin::from_seed([43 as uint]);
 
     for x in range(0, length) {
