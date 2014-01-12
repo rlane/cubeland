@@ -18,8 +18,6 @@ const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
 const float planet_radius = 6371000.0 / 5000.0;
 const float fog_density = 0.003;
 
-const vec4 grass_color = vec4(0.0, 1.0, 0.0, 1.0);
-
 void main() {
     float horiz_dist = length(camera_position - position);
 
@@ -31,12 +29,6 @@ void main() {
 
     gl_Position = projection * eye_position;
 
-    vec4 diffuse_factor
-        = max(-dot(normal, light_direction), 0.0) * light_diffuse;
-    frag_diffuse_factor = (diffuse_factor + light_ambient) * grass_color;
-
-    frag_fog_factor = clamp(exp2(-pow(length(eye_position), 2.0) * pow(fog_density, 2.0) * 1.44), 0.0, 1.0);
-
     if (normal.x != 0.0) {
         frag_texcoord = position.yz;
     } else if (normal.y != 0.0) {
@@ -44,5 +36,19 @@ void main() {
     } else {
         frag_texcoord = position.xy;
     }
-    frag_texcoord *= 16.0/128.0;
+
+    vec4 base_color;
+    if (position.y > 20) { /* HACK */
+        base_color = vec4(0.8, 0.8, 0.8, 1.0);
+	frag_texcoord *= 1.0/128.0;
+    } else {
+        base_color = vec4(0.0, 0.8, 0.2, 1.0);
+	frag_texcoord *= 16.0/128.0;
+    }
+
+    vec4 diffuse_factor
+        = max(-dot(normal, light_direction), 0.0) * light_diffuse;
+    frag_diffuse_factor = (diffuse_factor + light_ambient) * base_color;
+
+    frag_fog_factor = clamp(exp2(-pow(length(eye_position), 2.0) * pow(fog_density, 2.0) * 1.44), 0.0, 1.0);
 }
