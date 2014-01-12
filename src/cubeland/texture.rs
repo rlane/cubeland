@@ -22,14 +22,12 @@ use std::cast;
 
 use gl::types::*;
 
-use cgmath::vector::Vec3;
-
 use noise::Perlin;
 
 pub fn make_noise_texture() -> GLuint {
     let start_time = extra::time::precise_time_ns();
 
-    let mut pixels : ~[Vec3<u8>] = ~[];
+    let mut pixels : ~[u8] = ~[];
     static length : i32 = 128;
     let perlin = Perlin::from_seed([43 as uint]);
 
@@ -39,8 +37,8 @@ pub fn make_noise_texture() -> GLuint {
                 x as f64 * 0.6,
                 y as f64 * 0.6
             ]);
-            let g = ((noise * 0.3 + 0.4) * 255.0) as u8;
-            pixels.push(Vec3 { x: 0, y: g, z: 0 });
+            let x = ((noise * 0.3 + 0.4) * 255.0) as u8;
+            pixels.push(x);
         }
     }
 
@@ -57,9 +55,9 @@ pub fn make_noise_texture() -> GLuint {
     unsafe {
         gl::TexImage2D(
             gl::TEXTURE_2D, 0,
-            gl::RGB as GLint,
+            1 as GLint,
             length, length, 0,
-            gl::RGB, gl::UNSIGNED_BYTE,
+            gl::RED, gl::UNSIGNED_BYTE,
             cast::transmute(&pixels[0]));
     }
 
