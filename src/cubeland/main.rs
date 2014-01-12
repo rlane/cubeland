@@ -60,6 +60,8 @@ static LOD_FACTOR : f32 = 150.0f32;
 
 struct GraphicsResources {
     program: GLuint,
+    vertex_shader: GLuint,
+    fragment_shader: GLuint,
     texture: GLuint,
     uniform_modelview: GLint,
     uniform_projection: GLint,
@@ -97,7 +99,7 @@ fn main() {
 
         glfw::set_swap_interval(1);
 
-        let graphics_resources = match load_graphics_resources() {
+        let mut graphics_resources = match load_graphics_resources() {
             Ok(x) => x,
             Err(msg) => fail!("Error loading graphics resources: {}", msg),
         };
@@ -113,7 +115,8 @@ fn main() {
 
         let mut chunk_loader = chunk::ChunkLoader::new(WORLD_SEED);
 
-        window.set_key_callback(~KeyContext);
+        let (key_port, key_chan) = std::comm::Chan::new();
+        window.set_key_callback(~KeyContext { chan: key_chan });
 
         let (fb_size_port, fb_size_chan): (Port<(u32,u32)>, Chan<(u32,u32)>) = std::comm::Chan::new();
         window.set_framebuffer_size_callback(~FramebufferSizeContext { chan: fb_size_chan });
@@ -142,6 +145,36 @@ fn main() {
                         window_height = h;
                     }
                     None => break
+                }
+            }
+
+            loop {
+                match key_port.try_recv() {
+                    Some((glfw::Press, glfw::KeyR)) => {
+                        match load_graphics_resources() {
+                            Ok(x) => {
+                                unsafe { gl::DeleteTextures(1, &graphics_resources.texture); }
+                                gl::DeleteProgram(graphics_resources.program);
+                                gl::DeleteShader(graphics_resources.vertex_shader);
+                                gl::DeleteShader(graphics_resources.fragment_shader);
+
+                                graphics_resources = x;
+
+                                gl::UseProgram(graphics_resources.program);
+
+                                gl::ActiveTexture(gl::TEXTURE0);
+                                gl::Uniform1i(graphics_resources.uniform_texture, 0);
+
+                                gl::BindTexture(gl::TEXTURE_2D, graphics_resources.texture);
+                            },
+                            Err(msg) => println!("Error reloading graphics resources: {}", msg),
+                        };
+                    },
+                    Some((glfw::Press, glfw::KeyEscape)) => {
+                        window.set_should_close(true);
+                    },
+                    None => break,
+                    _ => {}
                 }
             }
 
@@ -379,6 +412,8 @@ fn load_graphics_resources() -> Result<GraphicsResources, ~str> {
 
     return Ok(GraphicsResources {
         program: program,
+        vertex_shader: vs,
+        fragment_shader: fs,
         texture: texture,
         uniform_modelview: uniform_modelview,
         uniform_projection: uniform_projection,
@@ -455,13 +490,12 @@ impl glfw::ErrorCallback for ErrorContext {
     }
 }
 
-struct KeyContext;
+struct KeyContext {
+    chan : Chan<(glfw::Action, glfw::Key)>,
+}
 impl glfw::KeyCallback for KeyContext {
-    fn call(&self, window: &glfw::Window, key: glfw::Key, _: libc::c_int, action: glfw::Action, _: glfw::Modifiers) {
-        match (action, key) {
-            (glfw::Press, glfw::KeyEscape) => window.set_should_close(true),
-            _ => {}
-        }
+    fn call(&self, _: &glfw::Window, key: glfw::Key, _: libc::c_int, action: glfw::Action, _: glfw::Modifiers) {
+        self.chan.send((action, key));
     }
 }
 
