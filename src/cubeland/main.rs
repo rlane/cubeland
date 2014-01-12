@@ -133,6 +133,11 @@ fn main() {
 
         let mut last_tick = extra::time::precise_time_ns();
 
+        let mut grabbed = true;
+
+        let mut camera_angle_x = 0.0;
+        let mut camera_angle_y = 0.0;
+
         while !window.should_close() {
             let frame_start_time = extra::time::precise_time_ns();
 
@@ -173,14 +178,24 @@ fn main() {
                     Some((glfw::Press, glfw::KeyEscape)) => {
                         window.set_should_close(true);
                     },
+                    Some((glfw::Press, glfw::KeyG)) => {
+                        grabbed = !grabbed;
+                        if grabbed {
+                            window.set_cursor_mode(glfw::CursorDisabled);
+                        } else {
+                            window.set_cursor_mode(glfw::CursorNormal);
+                        }
+                    }
                     None => break,
                     _ => {}
                 }
             }
 
-            let (cursor_x, cursor_y) = window.get_cursor_pos();
-            let camera_angle_y = ((cursor_x * 0.0005) % 1.0) * std::f64::consts::PI * 2.0;
-            let camera_angle_x = ((cursor_y * 0.0005) % 1.0) * std::f64::consts::PI * 2.0;
+            if grabbed {
+                let (cursor_x, cursor_y) = window.get_cursor_pos();
+                camera_angle_y = ((cursor_x * 0.0005) % 1.0) * std::f64::consts::PI * 2.0;
+                camera_angle_x = ((cursor_y * 0.0005) % 1.0) * std::f64::consts::PI * 2.0;
+            }
 
             let mut camera_velocity = Vec3::<f32>::new(0.0f32, 0.0f32, 0.0f32);
 
