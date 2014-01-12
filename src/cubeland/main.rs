@@ -26,7 +26,6 @@ use std::str;
 use std::vec;
 use std::libc;
 use std::io::Timer;
-use std::hashmap::HashSet;
 
 use gl::types::*;
 
@@ -182,7 +181,7 @@ fn main() {
 
         //let mut timer = Timer::new().unwrap();
 
-        let mut needed_chunks : HashSet<(i64, i64, uint)> = HashSet::new();
+        let mut needed_chunks : ~[(i64, i64, uint)] = ~[];
         let mut load_limiter = ratelimiter::RateLimiter::new(1000*1000*10);
 
         let mut last_tick = extra::time::precise_time_ns();
@@ -279,7 +278,9 @@ fn main() {
                 let mut found_lod = 0;
 
                 if !chunk_loader.cache.contains_key(&(cx, cz, lod)) {
-                    needed_chunks.insert((cx, cz, lod));
+                    if !needed_chunks.contains(&(cx, cz, lod)) {
+                        needed_chunks.push((cx, cz, lod));
+                    }
 
                     while found_lod < 5 {
                         if chunk_loader.cache.contains_key(&(cx, cz, found_lod)) {
@@ -331,20 +332,8 @@ fn main() {
             check_gl("main loop");
 
             if !needed_chunks.is_empty() && load_limiter.limit() {
-                let mut loaded = None;
-
-                for &(cx, cz, lod) in needed_chunks.iter() {
-                    chunk_loader.load(cx, cz, lod);
-                    loaded = Some((cx, cz, lod));
-                    break;
-                }
-
-                match loaded {
-                    Some((cx, cz, lod)) => {
-                        needed_chunks.remove(&(cx, cz, lod));
-                    },
-                    None => {}
-                }
+                let (cx, cz, lod) = needed_chunks.shift();
+                chunk_loader.load(cx, cz, lod);
             }
 
             fps_frame_counter += 1;
