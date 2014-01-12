@@ -143,7 +143,8 @@ fn main() {
 
         glfw::window_hint::samples(8);
 
-        let window = glfw::Window::create(window_width, window_height, "Hello, I am a window.", glfw::Windowed)
+        let window = glfw::Window::create(window_width, window_height,
+            "Cubeland", glfw::Windowed)
             .expect("Failed to create GLFW window.");
 
         window.set_cursor_mode(glfw::CursorDisabled);
