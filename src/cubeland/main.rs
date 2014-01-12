@@ -260,6 +260,8 @@ fn main() {
             let absolute_camera_velocity = inv_camera_rotation.mul_v(&camera_velocity).mul_s(CAMERA_SPEED).mul_s(tick_length);
             camera_position.add_self_v(&absolute_camera_velocity);
 
+            let clip_transform = projection.mul_m(&camera);
+
             let coords = visible_chunks(camera_position.x as i64,
                                         camera_position.z as i64);
 
@@ -288,12 +290,9 @@ fn main() {
                     Some(chunk) => {
                         chunk.touch();
 
-                        let modelview = camera;
-                        let modelviewprojection = projection.mul_m(&modelview);
-
                         let chunk_pos = Vec4::new(cx as f32, 0.0f32, cz as f32, 0.0f32);
 
-                        if view_frustum_cull(&modelviewprojection, &chunk_pos) {
+                        if view_frustum_cull(&clip_transform, &chunk_pos) {
                             culled += 1;
                             continue;
                         }
@@ -303,7 +302,7 @@ fn main() {
                         chunk.bind_arrays(&graphics_resources);
 
                         unsafe {
-                            gl::UniformMatrix4fv(graphics_resources.uniform_modelview, 1, gl::FALSE, modelview.ptr());
+                            gl::UniformMatrix4fv(graphics_resources.uniform_modelview, 1, gl::FALSE, camera.ptr());
                             gl::DrawElements(gl::TRIANGLES, chunk.num_elements as i32, gl::UNSIGNED_INT, ptr::null());
                         }
                     },
