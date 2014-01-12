@@ -39,6 +39,8 @@ use cgmath::vector::Vec4;
 use cgmath::angle::{rad, deg};
 use cgmath::ptr::Ptr;
 
+use spiral::Spiral;
+
 #[cfg(target_os = "linux")]
 #[link(name="GLU")]
 extern {}
@@ -46,6 +48,7 @@ extern {}
 mod chunk;
 mod ratelimiter;
 mod texture;
+mod spiral;
 
 static vertex_shader_src : &'static str = r"
 #version 110
@@ -352,16 +355,16 @@ fn main() {
 }
 
 fn visible_chunks(x: i64, z: i64) -> ~[(i64, i64, uint)] {
+    static num_chunks : uint = (VISIBLE_RADIUS * 2 + 1) * (VISIBLE_RADIUS * 2 + 1);
     let mask : i64 = !(CHUNK_SIZE as i64 - 1);
     let mut coords = ~[];
-    for ix in std::iter::range_inclusive(-(VISIBLE_RADIUS as i64), VISIBLE_RADIUS as i64) {
-        for iz in std::iter::range_inclusive(-(VISIBLE_RADIUS as i64), VISIBLE_RADIUS as i64) {
-            let cx : i64 = (x & mask) + ix*CHUNK_SIZE as i64;
-            let cz : i64 = (z & mask) + iz*CHUNK_SIZE as i64;
-            let dist : f32 = std::num::sqrt(std::num::pow((cx - x) as f32, 2.0f32) + std::num::pow((cz - z) as f32, 2.0f32));
-            let lod = (dist / LOD_FACTOR) as uint;
-            coords.push((cx, cz, lod));
-        }
+
+    for v in Spiral::<i64>::new(num_chunks) {
+        let cx : i64 = (x & mask) + v.x*CHUNK_SIZE as i64;
+        let cz : i64 = (z & mask) + v.y*CHUNK_SIZE as i64;
+        let dist : f32 = std::num::sqrt(std::num::pow((cx - x) as f32, 2.0f32) + std::num::pow((cz - z) as f32, 2.0f32));
+        let lod = (dist / LOD_FACTOR) as uint;
+        coords.push((cx, cz, lod));
     }
     coords
 }
