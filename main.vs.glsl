@@ -9,7 +9,9 @@ attribute vec3 normal;
 attribute float blocktype;
 
 varying vec4 frag_diffuse_factor;
-varying vec2 frag_texcoord;
+varying vec2 frag_texcoord1;
+varying vec2 frag_texcoord2;
+varying float frag_tex_factor;
 varying float frag_fog_factor;
 
 const vec3 light_direction = vec3(0.408248, -0.816497, 0.408248);
@@ -18,6 +20,10 @@ const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
 
 const float planet_radius = 6371000.0 / 5000.0;
 const float fog_density = 0.003;
+const float tex_size = 128.0;
+
+const float BLOCK_GRASS = 1.0;
+const float BLOCK_STONE = 2.0;
 
 void main() {
     float horiz_dist = length(camera_position - position);
@@ -31,23 +37,32 @@ void main() {
     gl_Position = projection * eye_position;
 
     if (normal.x != 0.0) {
-        frag_texcoord = position.yz;
+        frag_texcoord1 = position.yz;
     } else if (normal.y != 0.0) {
-        frag_texcoord = position.xz;
+        frag_texcoord1 = position.xz;
     } else {
-        frag_texcoord = position.xy;
+        frag_texcoord1 = position.xy;
     }
 
+    frag_texcoord1 /= tex_size;
+    frag_texcoord2 = frag_texcoord1;
+
     vec4 base_color;
-    if (blocktype == 2.0) {
-        base_color = vec4(0.8, 0.8, 0.8, 1.0);
-	frag_texcoord *= 1.0/128.0;
-    } else if (blocktype == 1.0) {
+    if (blocktype == BLOCK_GRASS) {
         base_color = vec4(0.0, 0.8, 0.2, 1.0);
-	frag_texcoord *= 16.0/128.0;
+	frag_texcoord1 *= 0.5;
+	frag_texcoord2 *= 16.0;
+        frag_tex_factor = 0.8;
+    } else if (blocktype == BLOCK_STONE) {
+        base_color = vec4(0.8, 0.8, 0.8, 1.0);
+	frag_texcoord1 *= 1.0;
+	frag_texcoord2 *= 8.0;
+        frag_tex_factor = 0.3;
     } else {
         base_color = vec4(1.0, 0.0, 0.0, 1.0);
-	frag_texcoord *= 16.0/128.0;
+	frag_texcoord1 *= 16.0;
+	frag_texcoord2 *= 16.0;
+        frag_tex_factor = 0.5;
     }
 
     vec4 diffuse_factor
