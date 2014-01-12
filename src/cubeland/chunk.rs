@@ -36,6 +36,14 @@ use GraphicsResources;
 
 static MAX_CHUNKS : uint = (VISIBLE_RADIUS*2)*(VISIBLE_RADIUS*2)*2;
 
+#[repr(u8)]
+#[deriving(Eq)]
+pub enum BlockType {
+    BlockAir = 0,
+    BlockGrass = 1,
+    BlockStone = 2,
+}
+
 pub struct ChunkLoader {
     seed : u32,
     cache : HashMap<(i64, i64, uint), ~Chunk>
@@ -67,6 +75,7 @@ pub struct Chunk {
     map: ~Map,
     vertex_buffer: GLuint,
     normal_buffer: GLuint,
+    blocktype_buffer: GLuint,
     element_buffer: GLuint,
     num_elements: uint,
     used_time: u64,
@@ -93,6 +102,13 @@ impl Chunk {
             gl::VertexAttribPointer(normal_attr as GLuint, 3, gl::FLOAT,
                                     gl::FALSE as GLboolean, 0, ptr::null());
 
+            let blocktype_attr = "blocktype".with_c_str(|ptr| gl::GetAttribLocation(res.program, ptr));
+            assert!(blocktype_attr as u32 != gl::INVALID_VALUE);
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.blocktype_buffer);
+            gl::EnableVertexAttribArray(blocktype_attr as GLuint);
+            gl::VertexAttribPointer(blocktype_attr as GLuint, 1, gl::FLOAT,
+                                    gl::FALSE as GLboolean, 0, ptr::null());
+
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.element_buffer);
         }
     }
@@ -104,13 +120,14 @@ impl Drop for Chunk {
             println!("unloading chunk ({}, {})", self.x, self.z);
             gl::DeleteBuffers(1, &self.vertex_buffer);
             gl::DeleteBuffers(1, &self.normal_buffer);
+            gl::DeleteBuffers(1, &self.blocktype_buffer);
             gl::DeleteBuffers(1, &self.element_buffer);
         }
     }
 }
 
 struct Block {
-    visible: bool,
+    blocktype: BlockType,
 }
 
 struct Map {
@@ -124,7 +141,7 @@ struct Face {
 
 pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
     let step = std::num::min(16u, 1 << lod);
-    let def_block = Block { visible: false };
+    let def_block = Block { blocktype: BlockAir };
     let mut map = ~Map {
         blocks: [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
     };
@@ -138,7 +155,7 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
             return false;
         }
 
-        map.blocks[x][y][z].visible
+        map.blocks[x][y][z].blocktype != BlockAir
     };
 
     let start_time = extra::time::precise_time_ns();
@@ -153,7 +170,11 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
             ]);
             let height = std::num::max(((noise + 1.0) * (CHUNK_SIZE as f64 / 4.0)), 1.0) as uint;
             for y in range(0, height) {
-                map.blocks[block_x][y][block_z] = Block { visible: true };
+                if y > 20 { /* HACK */
+                    map.blocks[block_x][y][block_z] = Block { blocktype: BlockStone };
+                } else {
+                    map.blocks[block_x][y][block_z] = Block { blocktype: BlockGrass };
+                }
             }
         }
     }
@@ -162,12 +183,14 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
 
     let mut vertices : ~[Vec3<f32>] = ~[];
     let mut normals : ~[Vec3<f32>] = ~[];
+    let mut blocktypes : ~[f32] = ~[];
     let mut elements : ~[GLuint] = ~[];
 
     static expected_vertices : uint = 70000;
     static expected_elements : uint = expected_vertices * 3 / 2;
     vertices.reserve(expected_vertices);
     normals.reserve(expected_vertices);
+    blocktypes.reserve(expected_vertices);
     elements.reserve(expected_elements);
 
     let mut idx = 0;
@@ -177,7 +200,7 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
             for z in std::iter::range_step(0, CHUNK_SIZE, step) {
                 let block = &map.blocks[x][y][z];
 
-                if (!block.visible) {
+                if (block.blocktype == BlockAir) {
                     continue;
                 }
 
@@ -202,6 +225,7 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
                     for v in face.vertices.iter() {
                         vertices.push(v.mul_s(step as f32).add_v(&block_position).add_v(&chunk_position));
                         normals.push(face.normal);
+                        blocktypes.push(block.blocktype as f32);
                     }
 
                     for e in face_elements.iter() {
@@ -218,6 +242,7 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
 
     let mut vertex_buffer = 0;
     let mut normal_buffer = 0;
+    let mut blocktype_buffer = 0;
     let mut element_buffer = 0;
 
     unsafe {
@@ -235,6 +260,14 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
         gl::BufferData(gl::ARRAY_BUFFER,
                         (normals.len() * std::mem::size_of::<Vec3<f32>>()) as GLsizeiptr,
                         cast::transmute(&normals[0]),
+                        gl::STATIC_DRAW);
+
+        // Create a Vertex Buffer Object and copy the blocktype data to it
+        gl::GenBuffers(1, &mut blocktype_buffer);
+        gl::BindBuffer(gl::ARRAY_BUFFER, blocktype_buffer);
+        gl::BufferData(gl::ARRAY_BUFFER,
+                        (blocktypes.len() * std::mem::size_of::<f32>()) as GLsizeiptr,
+                        cast::transmute(&blocktypes[0]),
                         gl::STATIC_DRAW);
 
         // Create a Vertex Buffer Object and copy the element data to it
@@ -260,6 +293,7 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
         map: map,
         vertex_buffer: vertex_buffer,
         normal_buffer: normal_buffer,
+        blocktype_buffer: blocktype_buffer,
         element_buffer: element_buffer,
         num_elements: elements.len(),
         used_time: extra::time::precise_time_ns(),

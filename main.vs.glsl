@@ -6,6 +6,7 @@ uniform vec3 camera_position;
 
 attribute vec3 position;
 attribute vec3 normal;
+attribute float blocktype;
 
 varying vec4 frag_diffuse_factor;
 varying vec2 frag_texcoord;
@@ -38,11 +39,14 @@ void main() {
     }
 
     vec4 base_color;
-    if (position.y > 20) { /* HACK */
+    if (blocktype == 2.0) {
         base_color = vec4(0.8, 0.8, 0.8, 1.0);
 	frag_texcoord *= 1.0/128.0;
-    } else {
+    } else if (blocktype == 1.0) {
         base_color = vec4(0.0, 0.8, 0.2, 1.0);
+	frag_texcoord *= 16.0/128.0;
+    } else {
+        base_color = vec4(1.0, 0.0, 0.0, 1.0);
 	frag_texcoord *= 16.0/128.0;
     }
 
