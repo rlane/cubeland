@@ -1,4 +1,4 @@
-#version 110
+#version 120
 
 const vec4 fog_color = vec4(0.0, 0.75, 1.0, 1.0);
 
