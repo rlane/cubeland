@@ -161,6 +161,7 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
     let start_time = extra::time::precise_time_ns();
 
     let perlin = Perlin::from_seed([seed as uint]);
+    let perlin2 = Perlin::from_seed([seed as uint * 7]);
 
     for block_x in std::iter::range_step(0, CHUNK_SIZE, step) {
         for block_z in std::iter::range_step(0, CHUNK_SIZE, step) {
@@ -168,9 +169,13 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
                 (chunk_x + block_x as i64) as f64 * 0.07,
                 (chunk_z + block_z as i64) as f64 * 0.04
             ]);
+            let noise2 = perlin2.gen([
+                (chunk_x + block_x as i64) as f64 * 0.05,
+                (chunk_z + block_z as i64) as f64 * 0.05
+            ]);
             let height = std::num::max(((noise + 1.0) * (CHUNK_SIZE as f64 / 4.0)), 1.0) as uint;
             for y in range(0, height) {
-                if y > 20 { /* HACK */
+                if (1.0 + noise2) * y as f64 > 20.0 {
                     map.blocks[block_x][y][block_z] = Block { blocktype: BlockStone };
                 } else {
                     map.blocks[block_x][y][block_z] = Block { blocktype: BlockGrass };
