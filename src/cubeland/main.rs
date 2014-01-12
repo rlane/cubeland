@@ -97,7 +97,11 @@ fn main() {
 
         glfw::set_swap_interval(1);
 
-        let graphics_resources = load_graphics_resources();
+        let graphics_resources = match load_graphics_resources() {
+            Ok(x) => x,
+            Err(msg) => fail!("Error loading graphics resources: {}", msg),
+        };
+
         check_gl("after loading graphics resources");
 
         gl::UseProgram(graphics_resources.program);
@@ -349,12 +353,23 @@ fn view_frustum_cull(m : &Mat4<f32>) -> bool {
     return false;
 }
 
-fn load_graphics_resources() -> GraphicsResources {
+fn load_graphics_resources() -> Result<GraphicsResources, ~str> {
     let vs_src = std::io::fs::File::open_mode(&std::path::Path::new("main.vs.glsl"), std::io::Open, std::io::Read).unwrap().read_to_end();
-    let vs = compile_shader(vs_src, gl::VERTEX_SHADER);
+    let vs = match compile_shader(vs_src, gl::VERTEX_SHADER) {
+        Ok(vs) => vs,
+        Err(msg) => { return Err("vertex shader " + msg) },
+    };
+
     let fs_src = std::io::fs::File::open_mode(&std::path::Path::new("main.fs.glsl"), std::io::Open, std::io::Read).unwrap().read_to_end();
-    let fs = compile_shader(fs_src, gl::FRAGMENT_SHADER);
-    let program = link_program(vs, fs);
+    let fs = match compile_shader(fs_src, gl::FRAGMENT_SHADER) {
+        Ok(fs) => fs,
+        Err(msg) => { return Err("fragment shader " + msg) },
+    };
+
+    let program = match link_program(vs, fs) {
+        Ok(program) => program,
+        Err(msg) => { return Err("linking " + msg) },
+    };
 
     let texture = texture::make_noise_texture();
 
@@ -362,13 +377,13 @@ fn load_graphics_resources() -> GraphicsResources {
     let uniform_projection = unsafe { "projection".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
     let uniform_texture = unsafe { "texture".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
 
-    return GraphicsResources {
+    return Ok(GraphicsResources {
         program: program,
         texture: texture,
         uniform_modelview: uniform_modelview,
         uniform_projection: uniform_projection,
         uniform_texture: uniform_texture,
-    };
+    });
 
 }
 
@@ -386,7 +401,7 @@ fn check_gl(message : &str) {
     }
 }
 
-fn compile_shader(src: &[u8], ty: GLenum) -> GLuint {
+fn compile_shader(src: &[u8], ty: GLenum) -> Result<GLuint,~str> {
     let shader = gl::CreateShader(ty);
     unsafe {
         // Attempt to compile the shader
@@ -405,13 +420,13 @@ fn compile_shader(src: &[u8], ty: GLenum) -> GLuint {
             gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut len);
             let mut buf = vec::from_elem(len as uint - 1, 0u8);     // subtract 1 to skip the trailing null character
             gl::GetShaderInfoLog(shader, len, ptr::mut_null(), buf.as_mut_ptr() as *mut GLchar);
-            fail!(str::raw::from_utf8(buf).to_owned());
+            return Err(str::raw::from_utf8(buf).to_owned());
         }
     }
-    shader
+    Ok(shader)
 }
 
-fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
+fn link_program(vs: GLuint, fs: GLuint) -> Result<GLuint, ~str> {
     let program = gl::CreateProgram();
     gl::AttachShader(program, vs);
     gl::AttachShader(program, fs);
@@ -427,10 +442,10 @@ fn link_program(vs: GLuint, fs: GLuint) -> GLuint {
             gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut len);
             let mut buf = vec::from_elem(len as uint - 1, 0u8);     // subtract 1 to skip the trailing null character
             gl::GetProgramInfoLog(program, len, ptr::mut_null(), buf.as_mut_ptr() as *mut GLchar);
-            fail!(str::raw::from_utf8(buf).to_owned());
+            return Err(str::raw::from_utf8(buf).to_owned());
         }
     }
-    program
+    Ok(program)
 }
 
 struct ErrorContext;
