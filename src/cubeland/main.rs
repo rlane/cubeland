@@ -455,9 +455,9 @@ fn compile_shader(src: &[u8], ty: GLenum) -> Result<GLuint,~str> {
     let shader = gl::CreateShader(ty);
     unsafe {
         // Attempt to compile the shader
-        //transmute is used here because `as` causes ICE
-        //wait a sec, is `src` null-terminated properly?
-        gl::ShaderSource(shader, 1, std::cast::transmute(std::ptr::to_unsafe_ptr(&src.as_ptr())), ptr::null());
+        let length = src.len() as GLint;
+        let ptr = src.unsafe_ref(0) as *i8;
+        gl::ShaderSource(shader, 1, &ptr, &length);
         gl::CompileShader(shader);
 
         // Get the compile status
