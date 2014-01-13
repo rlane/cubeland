@@ -44,6 +44,7 @@ pub enum BlockType {
     BlockAir = 0,
     BlockGrass = 1,
     BlockStone = 2,
+    BlockDirt = 3,
 }
 
 pub struct ChunkLoader {
@@ -201,7 +202,11 @@ fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, step: uint, map: &mut Map)
 
                 let dirt_height = (4.0 + noise2 * 8.0) as uint;
                 if (y <= 20) && (y + dirt_height >= height) {
-                    blocktype = BlockGrass;
+                    if y < height - 2 {
+                        blocktype = BlockDirt;
+                    } else {
+                        blocktype = BlockGrass;
+                    }
                 }
 
                 map.blocks[block_x][y][block_z] = Block { blocktype: blocktype };
