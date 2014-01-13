@@ -314,10 +314,21 @@ fn main() {
 
                         rendered += 1;
 
-                        chunk.mesh.bind_arrays(&graphics_resources);
+                        let mesh = &chunk.mesh;
 
-                        unsafe {
-                            gl::DrawElements(gl::TRIANGLES, chunk.mesh.num_elements as i32, gl::UNSIGNED_INT, ptr::null());
+                        mesh.bind_arrays(&graphics_resources);
+
+                        for face in chunk::faces.iter() {
+                            let (offset, count) = mesh.face_ranges[face.index];
+                            unsafe {
+                                gl::DrawElements(
+                                    gl::TRIANGLES,
+                                    count as i32,
+                                    gl::UNSIGNED_INT,
+                                    std::cast::transmute(
+                                        offset *
+                                        std::mem::size_of::<GLuint>()));
+                            }
                         }
                     },
                     None => {}

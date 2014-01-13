@@ -36,6 +36,7 @@ use CHUNK_SIZE;
 use VISIBLE_RADIUS;
 use GraphicsResources;
 
+static NUM_FACES : uint = 6;
 static MAX_CHUNKS : uint = (VISIBLE_RADIUS*2)*(VISIBLE_RADIUS*2)*2;
 
 #[repr(u8)]
@@ -100,7 +101,7 @@ struct Mesh {
     normal_buffer: GLuint,
     blocktype_buffer: GLuint,
     element_buffer: GLuint,
-    num_elements: uint,
+    face_ranges: [(uint, uint), ..NUM_FACES],
 }
 
 impl Mesh {
@@ -143,7 +144,8 @@ impl Drop for Mesh {
     }
 }
 
-struct Face {
+pub struct Face {
+    index: uint,
     normal: Vec3<f32>,
     vertices: [Vec3<f32>, ..4],
 }
@@ -262,35 +264,38 @@ fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map, step: uint) -> ~Mesh {
     blocktypes.reserve(expected_vertices);
     elements.reserve(expected_elements);
 
-    let mut idx = 0;
+    let mut face_ranges = [(0, 0), ..6];
 
-    for x in std::iter::range_step(0, CHUNK_SIZE, step) {
-        for y in std::iter::range_step(0, CHUNK_SIZE, step) {
-            for z in std::iter::range_step(0, CHUNK_SIZE, step) {
-                let block = &map.blocks[x][y][z];
+    let chunk_position = Vec3 {
+        x: chunk_x as f32,
+        y: 0.0f32,
+        z: chunk_z as f32,
+    };
 
-                if (block.blocktype == BlockAir) {
-                    continue;
-                }
+    for face in faces.iter() {
+        let num_elements_start = elements.len();
 
-                let chunk_position = Vec3 {
-                    x: chunk_x as f32,
-                    y: 0.0f32,
-                    z: chunk_z as f32,
-                };
+        for x in std::iter::range_step(0, CHUNK_SIZE, step) {
+            for y in std::iter::range_step(0, CHUNK_SIZE, step) {
+                for z in std::iter::range_step(0, CHUNK_SIZE, step) {
+                    let block = &map.blocks[x][y][z];
 
-                let block_position = Vec3 {
-                    x: x as f32,
-                    y: y as f32,
-                    z: z as f32,
-                };
+                    if (block.blocktype == BlockAir) {
+                        continue;
+                    }
 
-                for face in faces.iter() {
+                    let block_position = Vec3 {
+                        x: x as f32,
+                        y: y as f32,
+                        z: z as f32,
+                    };
+
                     let neighbor_position = block_position.add_v(&face.normal.mul_s(step as f32));
                     if block_exists(map, neighbor_position.x as int, neighbor_position.y as int, neighbor_position.z as int) {
                         continue;
                     }
 
+                    let vertex_offset = vertices.len();
                     for v in face.vertices.iter() {
                         vertices.push(v.mul_s(step as f32).add_v(&block_position).add_v(&chunk_position));
                         normals.push(face.normal);
@@ -298,13 +303,13 @@ fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map, step: uint) -> ~Mesh {
                     }
 
                     for e in face_elements.iter() {
-                        elements.push((idx * face.vertices.len()) as GLuint + *e);
+                        elements.push(vertex_offset as GLuint + *e);
                     }
-
-                    idx += 1;
                 }
             }
         }
+
+        face_ranges[face.index] = (num_elements_start, elements.len() - num_elements_start);
     }
 
     let mut vertex_buffer = 0;
@@ -312,38 +317,40 @@ fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map, step: uint) -> ~Mesh {
     let mut blocktype_buffer = 0;
     let mut element_buffer = 0;
 
-    unsafe {
-        // Create a Vertex Buffer Object and copy the vertex data to it
-        gl::GenBuffers(1, &mut vertex_buffer);
-        gl::BindBuffer(gl::ARRAY_BUFFER, vertex_buffer);
-        gl::BufferData(gl::ARRAY_BUFFER,
+    if !elements.is_empty() {
+        unsafe {
+            // Create a Vertex Buffer Object and copy the vertex data to it
+            gl::GenBuffers(1, &mut vertex_buffer);
+            gl::BindBuffer(gl::ARRAY_BUFFER, vertex_buffer);
+            gl::BufferData(gl::ARRAY_BUFFER,
                         (vertices.len() * std::mem::size_of::<Vec3<f32>>()) as GLsizeiptr,
                         cast::transmute(&vertices[0]),
                         gl::STATIC_DRAW);
 
-        // Create a Vertex Buffer Object and copy the normal data to it
-        gl::GenBuffers(1, &mut normal_buffer);
-        gl::BindBuffer(gl::ARRAY_BUFFER, normal_buffer);
-        gl::BufferData(gl::ARRAY_BUFFER,
+            // Create a Vertex Buffer Object and copy the normal data to it
+            gl::GenBuffers(1, &mut normal_buffer);
+            gl::BindBuffer(gl::ARRAY_BUFFER, normal_buffer);
+            gl::BufferData(gl::ARRAY_BUFFER,
                         (normals.len() * std::mem::size_of::<Vec3<f32>>()) as GLsizeiptr,
                         cast::transmute(&normals[0]),
                         gl::STATIC_DRAW);
 
-        // Create a Vertex Buffer Object and copy the blocktype data to it
-        gl::GenBuffers(1, &mut blocktype_buffer);
-        gl::BindBuffer(gl::ARRAY_BUFFER, blocktype_buffer);
-        gl::BufferData(gl::ARRAY_BUFFER,
+            // Create a Vertex Buffer Object and copy the blocktype data to it
+            gl::GenBuffers(1, &mut blocktype_buffer);
+            gl::BindBuffer(gl::ARRAY_BUFFER, blocktype_buffer);
+            gl::BufferData(gl::ARRAY_BUFFER,
                         (blocktypes.len() * std::mem::size_of::<f32>()) as GLsizeiptr,
                         cast::transmute(&blocktypes[0]),
                         gl::STATIC_DRAW);
 
-        // Create a Vertex Buffer Object and copy the element data to it
-        gl::GenBuffers(1, &mut element_buffer);
-        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, element_buffer);
-        gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
+            // Create a Vertex Buffer Object and copy the element data to it
+            gl::GenBuffers(1, &mut element_buffer);
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, element_buffer);
+            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
                         (elements.len() * std::mem::size_of::<GLuint>()) as GLsizeiptr,
                         cast::transmute(&elements[0]),
                         gl::STATIC_DRAW);
+        }
     }
 
     let end_time = precise_time_ns();
@@ -357,7 +364,7 @@ fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map, step: uint) -> ~Mesh {
         normal_buffer: normal_buffer,
         blocktype_buffer: blocktype_buffer,
         element_buffer: element_buffer,
-        num_elements: elements.len(),
+        face_ranges: face_ranges,
     }
 }
 
@@ -365,9 +372,10 @@ static face_elements : [GLuint, ..6] = [
     0, 1, 2, 3, 2, 1,
 ];
 
-static faces : [Face, ..6] = [
+pub static faces : [Face, ..NUM_FACES] = [
     /* front */
     Face {
+        index: 0,
         normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
         vertices: [
             Vec3 { x: 0.0, y: 0.0, z: 1.0 }, /* bottom left */
@@ -379,6 +387,7 @@ static faces : [Face, ..6] = [
 
     /* back */
     Face {
+        index: 1,
         normal: Vec3 { x: 0.0, y: 0.0, z: -1.0 },
         vertices: [
             Vec3 { x: 1.0, y: 0.0, z: 0.0 }, /* bottom right */
@@ -390,6 +399,7 @@ static faces : [Face, ..6] = [
 
     /* right */
     Face {
+        index: 2,
         normal: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
         vertices: [
             Vec3 { x: 1.0, y: 0.0, z: 1.0 }, /* bottom front */
@@ -401,6 +411,7 @@ static faces : [Face, ..6] = [
 
     /* left */
     Face {
+        index: 3,
         normal: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
         vertices: [
             Vec3 { x: 0.0, y: 0.0, z: 0.0 }, /* bottom back */
@@ -412,6 +423,7 @@ static faces : [Face, ..6] = [
 
     /* top */
     Face {
+        index: 4,
         normal: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
         vertices: [
             Vec3 { x: 0.0, y: 1.0, z: 1.0 }, /* front left */
@@ -423,6 +435,7 @@ static faces : [Face, ..6] = [
 
     /* bottom */
     Face {
+        index: 5,
         normal: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
         vertices: [
             Vec3 { x: 0.0, y: 0.0, z: 0.0 }, /* back left */
