@@ -321,6 +321,12 @@ fn main() {
                         mesh.bind_arrays(&graphics_resources);
 
                         for face in chunk::faces.iter() {
+                            if !face_visible(face, cx, cz,
+                                             camera_position.x as i64,
+                                             camera_position.z as i64) {
+                                continue;
+                            }
+
                             let (offset, count) = mesh.face_ranges[face.index];
                             unsafe {
                                 gl::DrawElements(
@@ -421,6 +427,21 @@ fn view_frustum_cull(m : &Mat4<f32>, p: &Vec4<f32>) -> bool {
     }
 
     return false;
+}
+
+fn face_visible(face : &chunk::Face, cx : i64, cz : i64, px : i64, pz : i64) -> bool {
+    let dx = px - cx;
+    let dz = pz - cz;
+
+    match face.index {
+        0 => dz >= 0,
+        1 => dz <= CHUNK_SIZE as i64,
+        2 => dx >= 0,
+        3 => dx <= CHUNK_SIZE as i64,
+        4 => true,
+        5 => true,
+        _ => unreachable!()
+    }
 }
 
 fn load_graphics_resources() -> Result<GraphicsResources, ~str> {
