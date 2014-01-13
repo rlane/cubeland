@@ -51,13 +51,13 @@ void main() {
     vec4 base_color;
     if (blocktype == BLOCK_GRASS) {
         base_color = vec4(0.0, 0.8, 0.2, 1.0);
-	frag_texcoord1 *= 0.5;
-	frag_texcoord2 *= 16.0;
+        frag_texcoord1 *= 0.5;
+        frag_texcoord2 *= 16.0;
         frag_tex_factor = 0.8;
     } else if (blocktype == BLOCK_STONE) {
         base_color = vec4(0.8, 0.8, 0.8, 1.0);
-	frag_texcoord1 *= 1.0;
-	frag_texcoord2 *= 8.0;
+        frag_texcoord1 *= 1.0;
+        frag_texcoord2 *= 8.0;
         frag_tex_factor = 0.3;
     } else if (blocktype == BLOCK_DIRT) {
         base_color = vec4(0.63, 0.35, 0.03, 1.0);
@@ -66,8 +66,8 @@ void main() {
         frag_tex_factor = 0.8;
     } else {
         base_color = vec4(1.0, 0.0, 0.0, 1.0);
-	frag_texcoord1 *= 16.0;
-	frag_texcoord2 *= 16.0;
+        frag_texcoord1 *= 16.0;
+        frag_texcoord2 *= 16.0;
         frag_tex_factor = 0.5;
     }
 
