@@ -191,9 +191,11 @@ fn main() {
                         let mut cur_mode : GLint = 0;
                         unsafe { gl::GetIntegerv(gl::POLYGON_MODE, &mut cur_mode); }
                         if cur_mode == gl::FILL as i32 {
-                            gl::PolygonMode(gl::FRONT, gl::LINE);
+                            gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
+                            gl::Disable(gl::CULL_FACE);
                         } else {
-                            gl::PolygonMode(gl::FRONT, gl::FILL);
+                            gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL);
+                            gl::Enable(gl::CULL_FACE);
                         }
                     },
                     None => break,
