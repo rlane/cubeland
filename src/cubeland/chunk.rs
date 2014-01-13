@@ -22,6 +22,7 @@ use std::cast;
 use std::ptr;
 use std::hashmap::HashMap;
 use std;
+use std::num::clamp;
 
 use extra::time::precise_time_ns;
 
@@ -212,14 +213,15 @@ fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, step: uint, map: &mut Map)
 
             let base_height = 15.0;
             let base_variance = 10.0;
-            let height =
-                std::num::max(
+            let height = clamp(
+                (
                     base_height +
                     noise4 * 10.0 +
                     base_variance *
                         std::num::pow(noise3 + 1.0, 2.5) *
-                        noise1,
-                    1.0) as uint;
+                        noise1
+                ) as int,
+                1, CHUNK_SIZE as int - 1) as uint;
 
             for y in range(0, height) {
                 let mut blocktype = BlockStone;
