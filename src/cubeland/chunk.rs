@@ -184,12 +184,14 @@ fn block_exists(map: &Map, x: int, y: int, z: int) -> bool {
 fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, step: uint, map: &mut Map) {
     let start_time = precise_time_ns();
 
-    let perlin = Perlin::from_seed([seed as uint]);
+    let perlin1 = Perlin::from_seed([seed as uint]);
     let perlin2 = Perlin::from_seed([seed as uint * 7]);
+    let perlin3 = Perlin::from_seed([seed as uint * 13]);
+    let perlin4 = Perlin::from_seed([seed as uint * 17]);
 
     for block_x in std::iter::range_step(0, CHUNK_SIZE, step) {
         for block_z in std::iter::range_step(0, CHUNK_SIZE, step) {
-            let noise = perlin.gen([
+            let noise1 = perlin1.gen([
                 (chunk_x + block_x as i64) as f64 * 0.07,
                 (chunk_z + block_z as i64) as f64 * 0.04
             ]);
@@ -197,7 +199,26 @@ fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, step: uint, map: &mut Map)
                 (chunk_x + block_x as i64) as f64 * 0.05,
                 (chunk_z + block_z as i64) as f64 * 0.05
             ]);
-            let height = std::num::max(((noise + 1.0) * (CHUNK_SIZE as f64 / 4.0)), 1.0) as uint;
+            let noise3 = perlin3.gen([
+                (chunk_x + block_x as i64) as f64 * 0.005,
+                (chunk_z + block_z as i64) as f64 * 0.005
+            ]);
+            let noise4 = perlin4.gen([
+                (chunk_x + block_x as i64) as f64 * 0.001,
+                (chunk_z + block_z as i64) as f64 * 0.001
+            ]);
+
+            let base_height = 15.0;
+            let base_variance = 10.0;
+            let height =
+                std::num::max(
+                    base_height +
+                    noise4 * 10.0 +
+                    base_variance *
+                        std::num::pow(noise3 + 1.0, 2.5) *
+                        noise1,
+                    1.0) as uint;
+
             for y in range(0, height) {
                 let mut blocktype = BlockStone;
 
@@ -213,7 +234,8 @@ fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, step: uint, map: &mut Map)
                 map.blocks[block_x][y][block_z] = Block { blocktype: blocktype };
             }
 
-            for y in range(height, 10) {
+            let water_height = 10;
+            for y in range(height, water_height) {
                 map.blocks[block_x][y][block_z] = Block { blocktype: BlockWater };
             }
         }
