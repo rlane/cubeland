@@ -23,6 +23,8 @@ use std::ptr;
 use std::hashmap::HashMap;
 use std;
 
+use extra::time::precise_time_ns;
+
 use gl::types::*;
 
 use cgmath::vector::Vector;
@@ -73,11 +75,7 @@ pub struct Chunk {
     x: i64,
     z: i64,
     map: ~Map,
-    vertex_buffer: GLuint,
-    normal_buffer: GLuint,
-    blocktype_buffer: GLuint,
-    element_buffer: GLuint,
-    num_elements: uint,
+    mesh: ~Mesh,
     used_time: u64,
 }
 
@@ -85,7 +83,25 @@ impl Chunk {
     pub fn touch(&mut self) {
         self.used_time = extra::time::precise_time_ns();
     }
+}
 
+struct Block {
+    blocktype: BlockType,
+}
+
+struct Map {
+    blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
+}
+
+struct Mesh {
+    vertex_buffer: GLuint,
+    normal_buffer: GLuint,
+    blocktype_buffer: GLuint,
+    element_buffer: GLuint,
+    num_elements: uint,
+}
+
+impl Mesh {
     pub fn bind_arrays(&self, res: &GraphicsResources) {
         unsafe {
             let vert_attr = "position".with_c_str(|ptr| gl::GetAttribLocation(res.program, ptr));
@@ -114,24 +130,15 @@ impl Chunk {
     }
 }
 
-impl Drop for Chunk {
+impl Drop for Mesh {
     fn drop(&mut self) {
         unsafe {
-            println!("unloading chunk ({}, {})", self.x, self.z);
             gl::DeleteBuffers(1, &self.vertex_buffer);
             gl::DeleteBuffers(1, &self.normal_buffer);
             gl::DeleteBuffers(1, &self.blocktype_buffer);
             gl::DeleteBuffers(1, &self.element_buffer);
         }
     }
-}
-
-struct Block {
-    blocktype: BlockType,
-}
-
-struct Map {
-    blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
 }
 
 struct Face {
@@ -147,11 +154,66 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
         blocks: [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
     };
 
-    let start_time = extra::time::precise_time_ns();
-
     terrain_gen(seed, chunk_x, chunk_z, step, map);
 
-    let after_terrain_time = extra::time::precise_time_ns();
+    let mesh = mesh_gen(chunk_x, chunk_z, map, step);
+
+    return ~Chunk {
+        x: chunk_x,
+        z: chunk_z,
+        map: map,
+        mesh: mesh,
+        used_time: extra::time::precise_time_ns(),
+    };
+}
+
+fn block_exists(map: &Map, x: int, y: int, z: int) -> bool {
+    if y < 0 {
+        return true;
+    }
+
+    if x < 0 || x >= CHUNK_SIZE as int || y >= CHUNK_SIZE as int || z < 0 || z >= CHUNK_SIZE as int {
+        return false;
+    }
+
+    map.blocks[x][y][z].blocktype != BlockAir
+}
+
+fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, step: uint, map: &mut Map) {
+    let start_time = precise_time_ns();
+
+    let perlin = Perlin::from_seed([seed as uint]);
+    let perlin2 = Perlin::from_seed([seed as uint * 7]);
+
+    for block_x in std::iter::range_step(0, CHUNK_SIZE, step) {
+        for block_z in std::iter::range_step(0, CHUNK_SIZE, step) {
+            let noise = perlin.gen([
+                (chunk_x + block_x as i64) as f64 * 0.07,
+                (chunk_z + block_z as i64) as f64 * 0.04
+            ]);
+            let noise2 = perlin2.gen([
+                (chunk_x + block_x as i64) as f64 * 0.05,
+                (chunk_z + block_z as i64) as f64 * 0.05
+            ]);
+            let height = std::num::max(((noise + 1.0) * (CHUNK_SIZE as f64 / 4.0)), 1.0) as uint;
+            for y in range(0, height) {
+                if (1.0 + noise2) * y as f64 > 20.0 {
+                    map.blocks[block_x][y][block_z] = Block { blocktype: BlockStone };
+                } else {
+                    map.blocks[block_x][y][block_z] = Block { blocktype: BlockGrass };
+                }
+            }
+        }
+    }
+
+    let end_time = precise_time_ns();
+
+    println!("terrain gen : {}us",
+             (end_time - start_time)/1000);
+}
+
+fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map, step: uint) -> ~Mesh {
+    let start_time = precise_time_ns();
 
     let mut vertices : ~[Vec3<f32>] = ~[];
     let mut normals : ~[Vec3<f32>] = ~[];
@@ -210,8 +272,6 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
         }
     }
 
-    let after_mesh_time = extra::time::precise_time_ns();
-
     let mut vertex_buffer = 0;
     let mut normal_buffer = 0;
     let mut blocktype_buffer = 0;
@@ -251,62 +311,18 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
                         gl::STATIC_DRAW);
     }
 
-    let after_buffer_time = extra::time::precise_time_ns();
+    let end_time = precise_time_ns();
 
-    println!("chunk load: terrain={}us mesh={}us buffer={}us num_vertices={} num_elements={}",
-             (after_terrain_time - start_time)/1000,
-             (after_mesh_time - after_terrain_time)/1000,
-             (after_buffer_time - after_mesh_time)/1000,
+    println!("mesh gen : {}us; vertices={}; elements={}",
+             (end_time - start_time)/1000,
              vertices.len(), elements.len())
 
-    return ~Chunk {
-        x: chunk_x,
-        z: chunk_z,
-        map: map,
+    ~Mesh {
         vertex_buffer: vertex_buffer,
         normal_buffer: normal_buffer,
         blocktype_buffer: blocktype_buffer,
         element_buffer: element_buffer,
         num_elements: elements.len(),
-        used_time: extra::time::precise_time_ns(),
-    };
-}
-
-fn block_exists(map: &Map, x: int, y: int, z: int) -> bool {
-    if y < 0 {
-        return true;
-    }
-
-    if x < 0 || x >= CHUNK_SIZE as int || y >= CHUNK_SIZE as int || z < 0 || z >= CHUNK_SIZE as int {
-        return false;
-    }
-
-    map.blocks[x][y][z].blocktype != BlockAir
-}
-
-fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, step: uint, map: &mut Map) {
-    let perlin = Perlin::from_seed([seed as uint]);
-    let perlin2 = Perlin::from_seed([seed as uint * 7]);
-
-    for block_x in std::iter::range_step(0, CHUNK_SIZE, step) {
-        for block_z in std::iter::range_step(0, CHUNK_SIZE, step) {
-            let noise = perlin.gen([
-                (chunk_x + block_x as i64) as f64 * 0.07,
-                (chunk_z + block_z as i64) as f64 * 0.04
-            ]);
-            let noise2 = perlin2.gen([
-                (chunk_x + block_x as i64) as f64 * 0.05,
-                (chunk_z + block_z as i64) as f64 * 0.05
-            ]);
-            let height = std::num::max(((noise + 1.0) * (CHUNK_SIZE as f64 / 4.0)), 1.0) as uint;
-            for y in range(0, height) {
-                if (1.0 + noise2) * y as f64 > 20.0 {
-                    map.blocks[block_x][y][block_z] = Block { blocktype: BlockStone };
-                } else {
-                    map.blocks[block_x][y][block_z] = Block { blocktype: BlockGrass };
-                }
-            }
-        }
     }
 }
 

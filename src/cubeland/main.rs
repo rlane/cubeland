@@ -305,10 +305,10 @@ fn main() {
 
                         rendered += 1;
 
-                        chunk.bind_arrays(&graphics_resources);
+                        chunk.mesh.bind_arrays(&graphics_resources);
 
                         unsafe {
-                            gl::DrawElements(gl::TRIANGLES, chunk.num_elements as i32, gl::UNSIGNED_INT, ptr::null());
+                            gl::DrawElements(gl::TRIANGLES, chunk.mesh.num_elements as i32, gl::UNSIGNED_INT, ptr::null());
                         }
                     },
                     None => {}
