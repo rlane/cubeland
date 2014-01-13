@@ -201,7 +201,7 @@ fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, step: uint, map: &mut Map)
                 let mut blocktype = BlockStone;
 
                 let dirt_height = (4.0 + noise2 * 8.0) as uint;
-                if (y <= 20) && (y + dirt_height >= height) {
+                if (height <= 20) && (y + dirt_height >= height) {
                     if y < height - 2 {
                         blocktype = BlockDirt;
                     } else {
