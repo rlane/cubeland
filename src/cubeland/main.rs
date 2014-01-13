@@ -186,7 +186,16 @@ fn main() {
                         } else {
                             window.set_cursor_mode(glfw::CursorNormal);
                         }
-                    }
+                    },
+                    Some((glfw::Press, glfw::KeyL)) => {
+                        let mut cur_mode : GLint = 0;
+                        unsafe { gl::GetIntegerv(gl::POLYGON_MODE, &mut cur_mode); }
+                        if cur_mode == gl::FILL as i32 {
+                            gl::PolygonMode(gl::FRONT, gl::LINE);
+                        } else {
+                            gl::PolygonMode(gl::FRONT, gl::FILL);
+                        }
+                    },
                     None => break,
                     _ => {}
                 }
