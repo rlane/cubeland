@@ -45,6 +45,7 @@ pub enum BlockType {
     BlockGrass = 1,
     BlockStone = 2,
     BlockDirt = 3,
+    BlockWater = 4,
 }
 
 pub struct ChunkLoader {
@@ -210,6 +211,10 @@ fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, step: uint, map: &mut Map)
                 }
 
                 map.blocks[block_x][y][block_z] = Block { blocktype: blocktype };
+            }
+
+            for y in range(height, 10) {
+                map.blocks[block_x][y][block_z] = Block { blocktype: BlockWater };
             }
         }
     }
