@@ -56,7 +56,6 @@ pub static WORLD_SEED: u32 = 42;
 
 static FRAME_TIME_TARGET_MS : u64 = 16;
 static CAMERA_SPEED : f32 = 30.0f32;
-static LOD_FACTOR : f32 = 150.0f32;
 
 struct GraphicsResources {
     program: GLuint,
@@ -129,7 +128,7 @@ fn main() {
 
         //let mut timer = Timer::new().unwrap();
 
-        let mut needed_chunks : ~[(i64, i64, uint)] = ~[];
+        let mut needed_chunks : ~[(i64, i64)] = ~[];
         let mut load_limiter = ratelimiter::RateLimiter::new(1000*1000*10);
 
         let mut last_tick = extra::time::precise_time_ns();
@@ -285,25 +284,8 @@ fn main() {
             let mut culled = 0;
             let mut rendered = 0;
 
-            for &(cx, cz, lod) in coords.iter() {
-                let mut found_lod = 0;
-
-                if !chunk_loader.cache.contains_key(&(cx, cz, lod)) {
-                    if !needed_chunks.contains(&(cx, cz, lod)) {
-                        needed_chunks.push((cx, cz, lod));
-                    }
-
-                    while found_lod < 5 {
-                        if chunk_loader.cache.contains_key(&(cx, cz, found_lod)) {
-                            break;
-                        }
-                        found_lod += 1;
-                    }
-                } else {
-                    found_lod = lod;
-                }
-
-                match chunk_loader.cache.find_mut(&(cx, cz, found_lod)) {
+            for &(cx, cz) in coords.iter() {
+                match chunk_loader.cache.find_mut(&(cx, cz)) {
                     Some(chunk) => {
                         chunk.touch();
 
@@ -339,7 +321,11 @@ fn main() {
                             }
                         }
                     },
-                    None => {}
+                    None => {
+                        if !needed_chunks.contains(&(cx, cz)) {
+                            needed_chunks.push((cx, cz));
+                        }
+                    }
                 }
             }
 
@@ -352,8 +338,8 @@ fn main() {
             check_gl("main loop");
 
             if !needed_chunks.is_empty() && load_limiter.limit() {
-                let (cx, cz, lod) = needed_chunks.shift();
-                chunk_loader.load(cx, cz, lod);
+                let (cx, cz) = needed_chunks.shift();
+                chunk_loader.load(cx, cz);
             }
 
             fps_frame_counter += 1;
@@ -371,7 +357,7 @@ fn main() {
     }
 }
 
-fn visible_chunks(x: i64, z: i64) -> ~[(i64, i64, uint)] {
+fn visible_chunks(x: i64, z: i64) -> ~[(i64, i64)] {
     static num_chunks : uint = (VISIBLE_RADIUS * 2 + 1) * (VISIBLE_RADIUS * 2 + 1);
     let mask : i64 = !(CHUNK_SIZE as i64 - 1);
     let mut coords = ~[];
@@ -379,9 +365,7 @@ fn visible_chunks(x: i64, z: i64) -> ~[(i64, i64, uint)] {
     for v in Spiral::<i64>::new(num_chunks) {
         let cx : i64 = (x & mask) + v.x*CHUNK_SIZE as i64;
         let cz : i64 = (z & mask) + v.y*CHUNK_SIZE as i64;
-        let dist : f32 = std::num::sqrt(std::num::pow((cx - x) as f32, 2.0f32) + std::num::pow((cz - z) as f32, 2.0f32));
-        let lod = (dist / LOD_FACTOR) as uint;
-        coords.push((cx, cz, lod));
+        coords.push((cx, cz));
     }
     coords
 }

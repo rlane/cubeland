@@ -52,7 +52,7 @@ pub enum BlockType {
 
 pub struct ChunkLoader {
     seed : u32,
-    cache : HashMap<(i64, i64, uint), ~Chunk>
+    cache : HashMap<(i64, i64), ~Chunk>
 }
 
 impl ChunkLoader {
@@ -63,10 +63,10 @@ impl ChunkLoader {
         }
     }
 
-    pub fn load(&mut self, cx : i64, cz: i64, lod: uint) {
-        println!("loading chunk ({}, {}) lod={}", cx, cz, lod);
-        let chunk = chunk_gen(self.seed, cx, cz, lod);
-        self.cache.insert((cx, cz, lod), chunk);
+    pub fn load(&mut self, cx : i64, cz: i64) {
+        println!("loading chunk ({}, {})", cx, cz);
+        let chunk = chunk_gen(self.seed, cx, cz);
+        self.cache.insert((cx, cz), chunk);
 
         while self.cache.len() > MAX_CHUNKS {
             let (&k, _) = self.cache.iter().min_by(|&(_, chunk)| chunk.used_time).unwrap();
@@ -151,17 +151,15 @@ pub struct Face {
     vertices: [Vec3<f32>, ..4],
 }
 
-pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64, lod: uint) -> ~Chunk {
-    let step = std::num::min(16u, 1 << lod);
-
+pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64) -> ~Chunk {
     let def_block = Block { blocktype: BlockAir };
     let mut map = ~Map {
         blocks: [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
     };
 
-    terrain_gen(seed, chunk_x, chunk_z, step, map);
+    terrain_gen(seed, chunk_x, chunk_z, map);
 
-    let mesh = mesh_gen(chunk_x, chunk_z, map, step);
+    let mesh = mesh_gen(chunk_x, chunk_z, map);
 
     return ~Chunk {
         x: chunk_x,
@@ -184,7 +182,7 @@ fn block_exists(map: &Map, x: int, y: int, z: int) -> bool {
     map.blocks[x][y][z].blocktype != BlockAir
 }
 
-fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, step: uint, map: &mut Map) {
+fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, map: &mut Map) {
     let start_time = precise_time_ns();
 
     let perlin1 = Perlin::from_seed([seed as uint]);
@@ -192,8 +190,8 @@ fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, step: uint, map: &mut Map)
     let perlin3 = Perlin::from_seed([seed as uint * 13]);
     let perlin4 = Perlin::from_seed([seed as uint * 17]);
 
-    for block_x in std::iter::range_step(0, CHUNK_SIZE, step) {
-        for block_z in std::iter::range_step(0, CHUNK_SIZE, step) {
+    for block_x in std::iter::range(0, CHUNK_SIZE) {
+        for block_z in std::iter::range(0, CHUNK_SIZE) {
             let noise1 = perlin1.gen([
                 (chunk_x + block_x as i64) as f64 * 0.07,
                 (chunk_z + block_z as i64) as f64 * 0.04
@@ -251,7 +249,7 @@ fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, step: uint, map: &mut Map)
              (end_time - start_time)/1000);
 }
 
-fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map, step: uint) -> ~Mesh {
+fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map) -> ~Mesh {
     let start_time = precise_time_ns();
 
     let mut vertices : ~[Vec3<f32>] = ~[];
@@ -277,9 +275,9 @@ fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map, step: uint) -> ~Mesh {
     for face in faces.iter() {
         let num_elements_start = elements.len();
 
-        for x in std::iter::range_step(0, CHUNK_SIZE, step) {
-            for y in std::iter::range_step(0, CHUNK_SIZE, step) {
-                for z in std::iter::range_step(0, CHUNK_SIZE, step) {
+        for x in std::iter::range(0, CHUNK_SIZE) {
+            for y in std::iter::range(0, CHUNK_SIZE) {
+                for z in std::iter::range(0, CHUNK_SIZE) {
                     let block = &map.blocks[x][y][z];
 
                     if (block.blocktype == BlockAir) {
@@ -292,14 +290,14 @@ fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map, step: uint) -> ~Mesh {
                         z: z as f32,
                     };
 
-                    let neighbor_position = block_position.add_v(&face.normal.mul_s(step as f32));
+                    let neighbor_position = block_position.add_v(&face.normal);
                     if block_exists(map, neighbor_position.x as int, neighbor_position.y as int, neighbor_position.z as int) {
                         continue;
                     }
 
                     let vertex_offset = vertices.len();
                     for v in face.vertices.iter() {
-                        vertices.push(v.mul_s(step as f32).add_v(&block_position).add_v(&chunk_position));
+                        vertices.push(v.add_v(&block_position).add_v(&chunk_position));
                         normals.push(face.normal);
                         blocktypes.push(block.blocktype as f32);
                     }
