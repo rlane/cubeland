@@ -197,11 +197,14 @@ fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, step: uint, map: &mut Map)
             ]);
             let height = std::num::max(((noise + 1.0) * (CHUNK_SIZE as f64 / 4.0)), 1.0) as uint;
             for y in range(0, height) {
-                if (1.0 + noise2) * y as f64 > 20.0 {
-                    map.blocks[block_x][y][block_z] = Block { blocktype: BlockStone };
-                } else {
-                    map.blocks[block_x][y][block_z] = Block { blocktype: BlockGrass };
+                let mut blocktype = BlockStone;
+
+                let dirt_height = (4.0 + noise2 * 8.0) as uint;
+                if (y <= 20) && (y + dirt_height >= height) {
+                    blocktype = BlockGrass;
                 }
+
+                map.blocks[block_x][y][block_z] = Block { blocktype: blocktype };
             }
         }
     }
