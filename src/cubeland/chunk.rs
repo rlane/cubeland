@@ -25,6 +25,7 @@ use std;
 use std::num::clamp;
 
 use extra::time::precise_time_ns;
+use extra::bitv::BitvSet;
 
 use gl::types::*;
 
@@ -293,13 +294,37 @@ fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map) -> ~Mesh {
     for face in faces.iter() {
         let num_elements_start = elements.len();
 
+        let face_normal_int = Vec3 { x: face.normal.x as int, y: face.normal.y as int, z: face.normal.z as int };
+
+        let mut unmeshed_faces = BlockBitmap::new();
+        for x in std::iter::range(0, CHUNK_SIZE) {
+            for y in std::iter::range(0, CHUNK_SIZE) {
+                for z in std::iter::range(0, CHUNK_SIZE) {
+                    let block = &map.blocks[x][y][z];
+
+                    if (block.blocktype == BlockAir) {
+                        continue;
+                    }
+
+                    if block_exists(map,
+                                    x as int + face_normal_int.x,
+                                    y as int + face_normal_int.y,
+                                    z as int + face_normal_int.z) {
+                        continue;
+                    }
+
+                    unmeshed_faces.insert(x, y, z);
+                }
+            }
+        }
+
         for i in std::iter::range(0, CHUNK_SIZE) {
             for j in std::iter::range(0, CHUNK_SIZE) {
                 for k in std::iter::range(0, CHUNK_SIZE) {
                     let Vec3 { x: x, y: y, z: z } = face.di.mul_s(i).add_v(&face.dj.mul_s(j)).add_v(&face.dk.mul_s(k));
                     let block = &map.blocks[x][y][z];
 
-                    if (block.blocktype == BlockAir) {
+                    if !unmeshed_faces.contains(x, y, z) {
                         continue;
                     }
 
@@ -309,14 +334,20 @@ fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map) -> ~Mesh {
                         z: z as f32,
                     };
 
-                    let neighbor_position = block_position.add_v(&face.normal);
-                    if block_exists(map, neighbor_position.x as int, neighbor_position.y as int, neighbor_position.z as int) {
-                        continue;
+                    let dim = expand_face(map, &unmeshed_faces, face, Vec3 { x: x, y: y, z: z });
+                    let dim_f = Vec3 { x: dim.x as f32, y: dim.y as f32, z: dim.z as f32 };
+
+                    for dx in range(0, dim.x) {
+                        for dy in range(0, dim.y) {
+                            for dz in range(0, dim.z) {
+                                unmeshed_faces.remove(x + dx, y + dy, z + dz);
+                            }
+                        }
                     }
 
                     let vertex_offset = vertices.len();
                     for v in face.vertices.iter() {
-                        vertices.push(v.add_v(&block_position).add_v(&chunk_position));
+                        vertices.push(v.mul_v(&dim_f).add_v(&block_position).add_v(&chunk_position));
                         normals.push(face.normal);
                         blocktypes.push(block.blocktype as f32);
                     }
@@ -384,6 +415,75 @@ fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map) -> ~Mesh {
         blocktype_buffer: blocktype_buffer,
         element_buffer: element_buffer,
         face_ranges: face_ranges,
+    }
+}
+
+fn expand_face(map : &Map,
+               unmeshed_faces : &BlockBitmap,
+               face: &Face,
+               p: Vec3<uint>) -> Vec3<uint> {
+
+    let len_k = run_length(map, unmeshed_faces, p, face.dk);
+    let len_j = range(0, len_k).
+        map(|k| run_length(map, unmeshed_faces, p.add_v(&face.dk.mul_s(k)), face.dj)).
+        min().unwrap();
+
+    (Vec3 { x: 1, y: 1, z: 1 }).
+        add_v(&face.dk.mul_s(len_k - 1)).
+        add_v(&face.dj.mul_s(len_j - 1))
+}
+
+fn run_length(map : &Map,
+              unmeshed_faces : &BlockBitmap,
+              mut p: Vec3<uint>,
+              dp: Vec3<uint>) -> uint {
+    let block = &map.blocks[p.x][p.y][p.z];
+    let mut len = 1;
+
+    loop {
+        p.add_self_v(&dp);
+        if unmeshed_faces.contains(p.x, p.y, p.z) {
+            match map.index(p.x as int, p.y as int, p.z as int) {
+                Some(b) if b.blocktype == block.blocktype => {
+                    len += 1;
+                }
+                _ => {
+                    break;
+                }
+            }
+        } else {
+            break;
+        }
+    }
+
+    len
+}
+
+struct BlockBitmap {
+    set : BitvSet
+}
+
+impl BlockBitmap {
+    pub fn new() -> BlockBitmap {
+        BlockBitmap {
+            set: BitvSet::new()
+        }
+    }
+
+    pub fn contains(&self, x: uint, y: uint, z: uint) -> bool {
+        self.set.contains(&BlockBitmap::index(x, y, z))
+    }
+
+    pub fn insert(&mut self, x: uint, y: uint, z: uint) {
+        self.set.insert(BlockBitmap::index(x, y, z));
+    }
+
+    pub fn remove(&mut self, x: uint, y: uint, z: uint) {
+        self.set.remove(&BlockBitmap::index(x, y, z));
+    }
+
+    fn index(x: uint, y: uint, z: uint) -> uint {
+        x*CHUNK_SIZE*CHUNK_SIZE + y*CHUNK_SIZE + z
     }
 }
 
