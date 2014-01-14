@@ -93,8 +93,24 @@ struct Block {
     blocktype: BlockType,
 }
 
+impl Block {
+    pub fn is_opaque(&self) -> bool {
+        self.blocktype != BlockAir
+    }
+}
+
 struct Map {
     blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
+}
+
+impl Map {
+    pub fn index<'a>(&'a self, x: int, y: int, z: int) -> Option<&'a Block> {
+        if x < 0 || x >= CHUNK_SIZE as int || y < 0 || y >= CHUNK_SIZE as int || z < 0 || z >= CHUNK_SIZE as int {
+            None
+        } else {
+            Some(&self.blocks[x][y][z])
+        }
+    }
 }
 
 struct Mesh {
@@ -178,11 +194,10 @@ fn block_exists(map: &Map, x: int, y: int, z: int) -> bool {
         return true;
     }
 
-    if x < 0 || x >= CHUNK_SIZE as int || y >= CHUNK_SIZE as int || z < 0 || z >= CHUNK_SIZE as int {
-        return false;
+    match map.index(x, y, z) {
+        Some(block) => block.is_opaque(),
+        None => false
     }
-
-    map.blocks[x][y][z].blocktype != BlockAir
 }
 
 fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, map: &mut Map) {
