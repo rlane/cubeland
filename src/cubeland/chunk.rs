@@ -148,6 +148,9 @@ impl Drop for Mesh {
 pub struct Face {
     index: uint,
     normal: Vec3<f32>,
+    di: Vec3<uint>,
+    dj: Vec3<uint>,
+    dk: Vec3<uint>,
     vertices: [Vec3<f32>, ..4],
 }
 
@@ -275,9 +278,10 @@ fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map) -> ~Mesh {
     for face in faces.iter() {
         let num_elements_start = elements.len();
 
-        for x in std::iter::range(0, CHUNK_SIZE) {
-            for y in std::iter::range(0, CHUNK_SIZE) {
-                for z in std::iter::range(0, CHUNK_SIZE) {
+        for i in std::iter::range(0, CHUNK_SIZE) {
+            for j in std::iter::range(0, CHUNK_SIZE) {
+                for k in std::iter::range(0, CHUNK_SIZE) {
+                    let Vec3 { x: x, y: y, z: z } = face.di.mul_s(i).add_v(&face.dj.mul_s(j)).add_v(&face.dk.mul_s(k));
                     let block = &map.blocks[x][y][z];
 
                     if (block.blocktype == BlockAir) {
@@ -377,6 +381,9 @@ pub static faces : [Face, ..NUM_FACES] = [
     Face {
         index: 0,
         normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+        di: Vec3 { x: 0, y: 0, z: 1 },
+        dj: Vec3 { x: 1, y: 0, z: 0 },
+        dk: Vec3 { x: 0, y: 1, z: 0 },
         vertices: [
             Vec3 { x: 0.0, y: 0.0, z: 1.0 }, /* bottom left */
             Vec3 { x: 1.0, y: 0.0, z: 1.0 },  /* bottom right */
@@ -389,6 +396,9 @@ pub static faces : [Face, ..NUM_FACES] = [
     Face {
         index: 1,
         normal: Vec3 { x: 0.0, y: 0.0, z: -1.0 },
+        di: Vec3 { x: 0, y: 0, z: 1 },
+        dj: Vec3 { x: 1, y: 0, z: 0 },
+        dk: Vec3 { x: 0, y: 1, z: 0 },
         vertices: [
             Vec3 { x: 1.0, y: 0.0, z: 0.0 }, /* bottom right */
             Vec3 { x: 0.0, y: 0.0, z: 0.0 },  /* bottom left */
@@ -401,6 +411,9 @@ pub static faces : [Face, ..NUM_FACES] = [
     Face {
         index: 2,
         normal: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+        di: Vec3 { x: 1, y: 0, z: 0 },
+        dj: Vec3 { x: 0, y: 1, z: 0 },
+        dk: Vec3 { x: 0, y: 0, z: 1 },
         vertices: [
             Vec3 { x: 1.0, y: 0.0, z: 1.0 }, /* bottom front */
             Vec3 { x: 1.0, y: 0.0, z: 0.0 }, /* bottom back */
@@ -413,6 +426,9 @@ pub static faces : [Face, ..NUM_FACES] = [
     Face {
         index: 3,
         normal: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
+        di: Vec3 { x: 1, y: 0, z: 0 },
+        dj: Vec3 { x: 0, y: 1, z: 0 },
+        dk: Vec3 { x: 0, y: 0, z: 1 },
         vertices: [
             Vec3 { x: 0.0, y: 0.0, z: 0.0 }, /* bottom back */
             Vec3 { x: 0.0, y: 0.0, z: 1.0 }, /* bottom front */
@@ -425,6 +441,9 @@ pub static faces : [Face, ..NUM_FACES] = [
     Face {
         index: 4,
         normal: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+        di: Vec3 { x: 0, y: 1, z: 0 },
+        dj: Vec3 { x: 1, y: 0, z: 0 },
+        dk: Vec3 { x: 0, y: 0, z: 1 },
         vertices: [
             Vec3 { x: 0.0, y: 1.0, z: 1.0 }, /* front left */
             Vec3 { x: 1.0, y: 1.0, z: 1.0 }, /* front right */
@@ -437,6 +456,9 @@ pub static faces : [Face, ..NUM_FACES] = [
     Face {
         index: 5,
         normal: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+        di: Vec3 { x: 0, y: 1, z: 0 },
+        dj: Vec3 { x: 1, y: 0, z: 0 },
+        dk: Vec3 { x: 0, y: 0, z: 1 },
         vertices: [
             Vec3 { x: 0.0, y: 0.0, z: 0.0 }, /* back left */
             Vec3 { x: 1.0, y: 0.0, z: 0.0 }, /* back right */
