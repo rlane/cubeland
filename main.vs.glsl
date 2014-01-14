@@ -32,7 +32,7 @@ void main() {
 
     /* Curvature of the planet */
     vec3 curved_position = position;
-    curved_position.y -= planet_radius - sqrt(pow(planet_radius, 2.0) - pow(horiz_dist, 2.0));
+    //curved_position.y -= planet_radius - sqrt(pow(planet_radius, 2.0) - pow(horiz_dist, 2.0));
 
     vec4 eye_position = view * vec4(curved_position, 1.0);
 
