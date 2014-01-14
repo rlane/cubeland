@@ -276,7 +276,7 @@ fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map) -> ~Mesh {
     let mut blocktypes : ~[f32] = ~[];
     let mut elements : ~[GLuint] = ~[];
 
-    static expected_vertices : uint = 70000;
+    static expected_vertices : uint = 8000;
     static expected_elements : uint = expected_vertices * 3 / 2;
     vertices.reserve(expected_vertices);
     normals.reserve(expected_vertices);
