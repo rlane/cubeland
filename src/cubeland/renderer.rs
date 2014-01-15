@@ -80,6 +80,9 @@ impl Renderer {
         gl::ActiveTexture(gl::TEXTURE0);
         gl::Uniform1i(self.res.uniform_texture, 0);
         gl::BindTexture(gl::TEXTURE_2D, self.res.texture);
+        gl::EnableVertexAttribArray(self.res.attr_position);
+        gl::EnableVertexAttribArray(self.res.attr_normal);
+        gl::EnableVertexAttribArray(self.res.attr_blocktype);
 
         gl::Viewport(0, 0, self.window_size.x as GLint, self.window_size.y as GLint);
 
@@ -186,17 +189,14 @@ impl Renderer {
     fn bind_mesh(&self, mesh: &Mesh) {
         unsafe {
             gl::BindBuffer(gl::ARRAY_BUFFER, mesh.vertex_buffer);
-            gl::EnableVertexAttribArray(self.res.attr_position);
             gl::VertexAttribPointer(self.res.attr_position, 3, gl::FLOAT,
                                     gl::FALSE as GLboolean, 0, ptr::null());
 
             gl::BindBuffer(gl::ARRAY_BUFFER, mesh.normal_buffer);
-            gl::EnableVertexAttribArray(self.res.attr_normal);
             gl::VertexAttribPointer(self.res.attr_normal as GLuint, 3, gl::FLOAT,
                                     gl::FALSE as GLboolean, 0, ptr::null());
 
             gl::BindBuffer(gl::ARRAY_BUFFER, mesh.blocktype_buffer);
-            gl::EnableVertexAttribArray(self.res.attr_blocktype);
             gl::VertexAttribPointer(self.res.attr_blocktype, 1, gl::FLOAT,
                                     gl::FALSE as GLboolean, 0, ptr::null());
 
