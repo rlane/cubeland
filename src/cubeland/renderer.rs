@@ -52,23 +52,12 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window_size : Vec2<u32>) -> Renderer {
-        gl::Enable(gl::TEXTURE_2D);
-        gl::Enable(gl::DEPTH_TEST);
-        gl::Enable(gl::CULL_FACE);
-
         let res = match Resources::load() {
             Ok(x) => x,
             Err(msg) => fail!("Error loading graphics resources: {}", msg),
         };
 
         check_gl("after loading graphics resources");
-
-        gl::UseProgram(res.program);
-
-        gl::ActiveTexture(gl::TEXTURE0);
-        gl::Uniform1i(res.uniform_texture, 0);
-
-        gl::BindTexture(gl::TEXTURE_2D, res.texture);
 
         Renderer {
             res: res,
@@ -83,6 +72,15 @@ impl Renderer {
             camera_position : Vec3<f32>,
             camera_angle : Vec2<f64>)
     {
+        gl::Enable(gl::TEXTURE_2D);
+        gl::Enable(gl::DEPTH_TEST);
+        gl::Enable(gl::CULL_FACE);
+
+        gl::UseProgram(self.res.program);
+        gl::ActiveTexture(gl::TEXTURE0);
+        gl::Uniform1i(self.res.uniform_texture, 0);
+        gl::BindTexture(gl::TEXTURE_2D, self.res.texture);
+
         gl::Viewport(0, 0, self.window_size.x as GLint, self.window_size.y as GLint);
 
         gl::ClearColor(0.0, 0.75, 1.0, 1.0);
@@ -163,10 +161,6 @@ impl Renderer {
     pub fn reload_resources(&mut self) {
         match Resources::load() {
             Ok(res) => {
-                gl::UseProgram(res.program);
-                gl::ActiveTexture(gl::TEXTURE0);
-                gl::Uniform1i(res.uniform_texture, 0);
-                gl::BindTexture(gl::TEXTURE_2D, res.texture);
                 self.res = res;
             },
             Err(msg) => println!("Error reloading graphics resources: {}", msg),
