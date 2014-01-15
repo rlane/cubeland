@@ -34,6 +34,10 @@ use cgmath::vector::Vec3;
 use cgmath::angle::rad;
 use cgmath::ptr::Ptr;
 
+use spiral::Spiral;
+use chunk::Chunk;
+use chunk::ChunkLoader;
+
 #[cfg(target_os = "linux")]
 #[link(name="GLU")]
 extern {}
@@ -79,7 +83,7 @@ fn main() {
 
         let mut renderer = renderer::Renderer::new(DEFAULT_WINDOW_SIZE);
 
-        let mut chunk_loader = chunk::ChunkLoader::new(WORLD_SEED);
+        let mut chunk_loader = ChunkLoader::new(WORLD_SEED);
 
         let (key_port, key_chan) = std::comm::Chan::new();
         window.set_key_callback(~KeyContext { chan: key_chan });
@@ -91,9 +95,6 @@ fn main() {
         let mut fps_frame_counter = 0;
 
         let mut camera_position = Vec3::<f32>::new(0.0f32, 30.0f32, 40.0f32);
-
-        let mut needed_chunks : ~[(i64, i64)] = ~[];
-        let mut load_limiter = ratelimiter::RateLimiter::new(1000*1000*10);
 
         let mut last_tick = extra::time::precise_time_ns();
 
@@ -184,20 +185,27 @@ fn main() {
             let absolute_camera_velocity = inv_camera_rotation.mul_v(&camera_velocity).mul_s(CAMERA_SPEED).mul_s(tick_length);
             camera_position.add_self_v(&absolute_camera_velocity);
 
-            renderer.render(
-                &mut chunk_loader,
-                &mut needed_chunks,
-                camera_position,
-                Vec2 { x: camera_angle_x, y: camera_angle_y });
+            let camera_position_i64 = Vec3 {
+                x: camera_position.x as i64,
+                y: 0,
+                z: camera_position.z as i64
+            };
+
+            {
+                let chunks = find_nearby_chunks(&chunk_loader, camera_position_i64);
+
+                renderer.render(
+                    chunks,
+                    camera_position,
+                    Vec2 { x: camera_angle_x, y: camera_angle_y });
+            }
 
             window.swap_buffers();
 
-            check_gl("main loop");
+            request_nearby_chunks(&mut chunk_loader, camera_position_i64);
+            chunk_loader.work();
 
-            if !needed_chunks.is_empty() && load_limiter.limit() {
-                let (cx, cz) = needed_chunks.shift();
-                chunk_loader.load(cx, cz);
-            }
+            check_gl("main loop");
 
             fps_frame_counter += 1;
             if fps_display_limiter.limit() {
@@ -208,6 +216,33 @@ fn main() {
     }
 }
 
+fn nearby_chunk_coords(p: Vec3<i64>) -> ~[(i64, i64)] {
+    static num_chunks : uint = (VISIBLE_RADIUS * 2 + 1) * (VISIBLE_RADIUS * 2 + 1);
+    static mask : i64 = !(CHUNK_SIZE as i64 - 1);
+
+    let chunk_coord = |v: Vec2<i64>| -> (i64, i64) {
+        (
+            (p.x & mask) + v.x*CHUNK_SIZE as i64,
+            (p.z & mask) + v.y*CHUNK_SIZE as i64
+        )
+    };
+
+    Spiral::<i64>::new(num_chunks).map(chunk_coord).to_owned_vec()
+}
+
+fn find_nearby_chunks<'a>(chunk_loader: &'a ChunkLoader, p: Vec3<i64>) -> ~[&'a ~Chunk] {
+    let coords = nearby_chunk_coords(p);
+    coords.iter().
+        filter_map(|&c| chunk_loader.get(c)).
+        to_owned_vec()
+}
+
+fn request_nearby_chunks(chunk_loader: &mut ChunkLoader, p: Vec3<i64>) {
+    let coords = nearby_chunk_coords(p);
+    for &c in coords.iter() {
+        chunk_loader.request(c);
+    }
+}
 
 extern "C" {
     fn gluErrorString(error: GLenum) -> *GLubyte;

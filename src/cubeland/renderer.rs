@@ -40,10 +40,9 @@ use cgmath::ptr::Ptr;
 use check_gl;
 use chunk;
 use chunk::Mesh;
+use chunk::Chunk;
 use CHUNK_SIZE;
-use spiral::Spiral;
 use texture;
-use VISIBLE_RADIUS;
 
 enum RenderMode {
     RenderModeNormal,
@@ -74,8 +73,7 @@ impl Renderer {
 
     pub fn render(
             &self,
-            chunk_loader : &mut chunk::ChunkLoader,
-            needed_chunks : &mut ~[(i64, i64)],
+            chunks : &[&~chunk::Chunk],
             camera_position : Vec3<f32>,
             camera_angle : Vec2<f64>)
     {
@@ -133,46 +131,32 @@ impl Renderer {
 
         let clip_transform = projection.mul_m(&camera);
 
-        let coords = visible_chunks(camera_position.x as i64,
-                                    camera_position.z as i64);
+        for chunk in chunks.iter() {
+            let chunk_pos = Vec4::new(chunk.x as f32, 0.0f32, chunk.z as f32, 0.0f32);
 
-        for &(cx, cz) in coords.iter() {
-            match chunk_loader.cache.find_mut(&(cx, cz)) {
-                Some(chunk) => {
-                    chunk.touch();
+            if view_frustum_cull(&clip_transform, &chunk_pos) {
+                continue;
+            }
 
-                    let chunk_pos = Vec4::new(cx as f32, 0.0f32, cz as f32, 0.0f32);
+            let mesh : &Mesh = chunk.mesh;
+            self.bind_mesh(mesh);
 
-                    if view_frustum_cull(&clip_transform, &chunk_pos) {
-                        continue;
-                    }
+            for face in chunk::faces.iter() {
+                if !face_visible(face, chunk.x, chunk.z,
+                                camera_position.x as i64,
+                                camera_position.z as i64) {
+                    continue;
+                }
 
-                    let mesh : &Mesh = chunk.mesh;
-                    self.bind_mesh(mesh);
-
-                    for face in chunk::faces.iter() {
-                        if !face_visible(face, cx, cz,
-                                        camera_position.x as i64,
-                                        camera_position.z as i64) {
-                            continue;
-                        }
-
-                        let (offset, count) = mesh.face_ranges[face.index];
-                        unsafe {
-                            gl::DrawElements(
-                                gl::TRIANGLES,
-                                count as i32,
-                                gl::UNSIGNED_INT,
-                                std::cast::transmute(
-                                    offset *
-                                    std::mem::size_of::<GLuint>()));
-                        }
-                    }
-                },
-                None => {
-                    if !needed_chunks.contains(&(cx, cz)) {
-                        needed_chunks.push((cx, cz));
-                    }
+                let (offset, count) = mesh.face_ranges[face.index];
+                unsafe {
+                    gl::DrawElements(
+                        gl::TRIANGLES,
+                        count as i32,
+                        gl::UNSIGNED_INT,
+                        std::cast::transmute(
+                            offset *
+                            std::mem::size_of::<GLuint>()));
                 }
             }
         }
@@ -294,19 +278,6 @@ impl Drop for Resources {
         gl::DeleteShader(self.vertex_shader);
         gl::DeleteShader(self.fragment_shader);
     }
-}
-
-fn visible_chunks(x: i64, z: i64) -> ~[(i64, i64)] {
-    static num_chunks : uint = (VISIBLE_RADIUS * 2 + 1) * (VISIBLE_RADIUS * 2 + 1);
-    let mask : i64 = !(CHUNK_SIZE as i64 - 1);
-    let mut coords = ~[];
-
-    for v in Spiral::<i64>::new(num_chunks) {
-        let cx : i64 = (x & mask) + v.x*CHUNK_SIZE as i64;
-        let cz : i64 = (z & mask) + v.y*CHUNK_SIZE as i64;
-        coords.push((cx, cz));
-    }
-    coords
 }
 
 fn view_frustum_cull(m : &Mat4<f32>, p: &Vec4<f32>) -> bool {

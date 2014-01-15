@@ -51,7 +51,8 @@ pub enum BlockType {
 
 pub struct ChunkLoader {
     seed : u32,
-    cache : HashMap<(i64, i64), ~Chunk>
+    cache : HashMap<(i64, i64), ~Chunk>,
+    needed_chunks : ~[(i64, i64)],
 }
 
 impl ChunkLoader {
@@ -59,10 +60,33 @@ impl ChunkLoader {
         ChunkLoader {
             seed: seed,
             cache: HashMap::new(),
+            needed_chunks: ~[],
         }
     }
 
-    pub fn load(&mut self, cx : i64, cz: i64) {
+    pub fn get<'a>(&'a self, c: (i64, i64)) -> Option<&'a ~Chunk> {
+        self.cache.find(&c)
+    }
+
+    pub fn request(&mut self, c: (i64, i64)) {
+        match self.cache.find_mut(&c) {
+            Some(chunk) => {
+                chunk.touch();
+            }
+            None => {
+                if !self.needed_chunks.contains(&c) {
+                    self.needed_chunks.push(c);
+                }
+            }
+        }
+    }
+
+    pub fn work(&mut self) {
+        if self.needed_chunks.is_empty() {
+            return;
+        }
+
+        let (cx, cz) = self.needed_chunks.shift();
         println!("loading chunk ({}, {})", cx, cz);
         let chunk = chunk_gen(self.seed, cx, cz);
         self.cache.insert((cx, cz), chunk);
