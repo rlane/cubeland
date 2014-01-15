@@ -19,7 +19,6 @@ extern mod cgmath;
 extern mod noise;
 
 use std::cast;
-use std::ptr;
 use std::hashmap::HashMap;
 use std;
 use std::num::clamp;
@@ -36,7 +35,6 @@ use noise::Perlin;
 
 use CHUNK_SIZE;
 use VISIBLE_RADIUS;
-use GraphicsResources;
 
 static NUM_FACES : uint = 6;
 static MAX_CHUNKS : uint = (VISIBLE_RADIUS*2)*(VISIBLE_RADIUS*2)*2;
@@ -114,41 +112,12 @@ impl Map {
     }
 }
 
-struct Mesh {
+pub struct Mesh {
     vertex_buffer: GLuint,
     normal_buffer: GLuint,
     blocktype_buffer: GLuint,
     element_buffer: GLuint,
     face_ranges: [(uint, uint), ..NUM_FACES],
-}
-
-impl Mesh {
-    pub fn bind_arrays(&self, res: &GraphicsResources) {
-        unsafe {
-            let vert_attr = "position".with_c_str(|ptr| gl::GetAttribLocation(res.program, ptr));
-            assert!(vert_attr as u32 != gl::INVALID_VALUE);
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.vertex_buffer);
-            gl::EnableVertexAttribArray(vert_attr as GLuint);
-            gl::VertexAttribPointer(vert_attr as GLuint, 3, gl::FLOAT,
-                                    gl::FALSE as GLboolean, 0, ptr::null());
-
-            let normal_attr = "normal".with_c_str(|ptr| gl::GetAttribLocation(res.program, ptr));
-            assert!(normal_attr as u32 != gl::INVALID_VALUE);
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.normal_buffer);
-            gl::EnableVertexAttribArray(normal_attr as GLuint);
-            gl::VertexAttribPointer(normal_attr as GLuint, 3, gl::FLOAT,
-                                    gl::FALSE as GLboolean, 0, ptr::null());
-
-            let blocktype_attr = "blocktype".with_c_str(|ptr| gl::GetAttribLocation(res.program, ptr));
-            assert!(blocktype_attr as u32 != gl::INVALID_VALUE);
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.blocktype_buffer);
-            gl::EnableVertexAttribArray(blocktype_attr as GLuint);
-            gl::VertexAttribPointer(blocktype_attr as GLuint, 1, gl::FLOAT,
-                                    gl::FALSE as GLboolean, 0, ptr::null());
-
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.element_buffer);
-        }
-    }
 }
 
 impl Drop for Mesh {
