@@ -45,9 +45,15 @@ use spiral::Spiral;
 use texture;
 use VISIBLE_RADIUS;
 
+enum RenderMode {
+    RenderModeNormal,
+    RenderModeWireframe,
+}
+
 pub struct Renderer {
     res : Resources,
     window_size : Vec2<u32>,
+    mode : RenderMode,
 }
 
 impl Renderer {
@@ -62,6 +68,7 @@ impl Renderer {
         Renderer {
             res: res,
             window_size: window_size,
+            mode: RenderModeNormal,
         }
     }
 
@@ -74,7 +81,17 @@ impl Renderer {
     {
         gl::Enable(gl::TEXTURE_2D);
         gl::Enable(gl::DEPTH_TEST);
-        gl::Enable(gl::CULL_FACE);
+
+        match self.mode {
+            RenderModeNormal => {
+                gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL);
+                gl::Enable(gl::CULL_FACE);
+            },
+            RenderModeWireframe => {
+                gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
+                gl::Disable(gl::CULL_FACE);
+            },
+        }
 
         gl::UseProgram(self.res.program);
         gl::ActiveTexture(gl::TEXTURE0);
@@ -159,6 +176,13 @@ impl Renderer {
                 }
             }
         }
+
+        gl::UseProgram(0);
+        gl::BindTexture(gl::TEXTURE_2D, 0);
+        gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL);
+        gl::Disable(gl::CULL_FACE);
+        gl::Disable(gl::TEXTURE_2D);
+        gl::Disable(gl::DEPTH_TEST);
     }
 
     pub fn reload_resources(&mut self) {
@@ -170,16 +194,11 @@ impl Renderer {
         }
     }
 
-    pub fn toggle_line_mode(&self) {
-        let mut cur_mode : GLint = 0;
-        unsafe { gl::GetIntegerv(gl::POLYGON_MODE, &mut cur_mode); }
-        if cur_mode == gl::FILL as i32 {
-            gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
-            gl::Disable(gl::CULL_FACE);
-        } else {
-            gl::PolygonMode(gl::FRONT_AND_BACK, gl::FILL);
-            gl::Enable(gl::CULL_FACE);
-        }
+    pub fn toggle_wireframe_mode(&mut self) {
+        self.mode = match self.mode {
+            RenderModeWireframe => RenderModeNormal,
+            _ => RenderModeWireframe
+        };
     }
 
     pub fn set_window_size(&mut self, window_size: Vec2<u32>) {

@@ -131,7 +131,7 @@ fn main() {
                         }
                     },
                     Some((glfw::Press, glfw::KeyL)) => {
-                        renderer.toggle_line_mode();
+                        renderer.toggle_wireframe_mode();
                     },
                     None => break,
                     _ => {}
