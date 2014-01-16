@@ -44,6 +44,8 @@ use chunk::Chunk;
 use CHUNK_SIZE;
 use texture;
 
+static LIGHT_DIRECTION : Vec3<f32> = Vec3 { x: 0.408248, y: -0.816497, z: 0.408248 };
+
 enum RenderMode {
     RenderModeNormal,
     RenderModeWireframe,
@@ -113,6 +115,10 @@ impl Renderer {
 
         unsafe {
             gl::UniformMatrix4fv(self.res.uniform_projection, 1, gl::FALSE, projection.ptr());
+        }
+
+        unsafe {
+            gl::Uniform3fv(self.res.uniform_light_direction, 1, LIGHT_DIRECTION.ptr());
         }
 
         let camera_translation = Mat4::<f32>::from_cols(
@@ -217,6 +223,7 @@ struct Resources {
     uniform_projection: GLint,
     uniform_camera_position: GLint,
     uniform_texture: GLint,
+    uniform_light_direction: GLint,
     attr_position: GLuint,
     attr_normal: GLuint,
     attr_blocktype: GLuint,
@@ -247,6 +254,7 @@ impl Resources {
         let uniform_projection = unsafe { "projection".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
         let uniform_camera_position = unsafe { "camera_position".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
         let uniform_texture = unsafe { "texture".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
+        let uniform_light_direction = unsafe { "light_direction".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
 
         let attr_position = unsafe { "position".with_c_str(|ptr| gl::GetAttribLocation(program, ptr) as GLuint) };
         assert!(attr_position as u32 != gl::INVALID_VALUE);
@@ -264,6 +272,7 @@ impl Resources {
             uniform_projection: uniform_projection,
             uniform_camera_position: uniform_camera_position,
             uniform_texture: uniform_texture,
+            uniform_light_direction: uniform_light_direction,
             attr_position: attr_position,
             attr_normal: attr_normal,
             attr_blocktype: attr_blocktype,

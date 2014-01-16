@@ -3,6 +3,7 @@
 uniform mat4 view;
 uniform mat4 projection;
 uniform vec3 camera_position;
+uniform vec3 light_direction;
 
 attribute vec3 position;
 attribute vec3 normal;
@@ -14,7 +15,6 @@ varying vec2 frag_texcoord2;
 varying float frag_tex_factor;
 varying float frag_fog_factor;
 
-const vec3 light_direction = vec3(0.408248, -0.816497, 0.408248);
 const vec4 light_diffuse = vec4(0.8, 0.8, 0.8, 0.0);
 const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
 
