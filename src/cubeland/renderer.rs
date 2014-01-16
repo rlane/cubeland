@@ -224,13 +224,13 @@ struct Resources {
 
 impl Resources {
     fn load() -> Result<Resources, ~str> {
-        let vs_src = std::io::fs::File::open_mode(&std::path::Path::new("main.vs.glsl"), std::io::Open, std::io::Read).unwrap().read_to_end();
+        let vs_src = std::io::fs::File::open_mode(&std::path::Path::new("shaders/main.vs.glsl"), std::io::Open, std::io::Read).unwrap().read_to_end();
         let vs = match compile_shader(vs_src, gl::VERTEX_SHADER) {
             Ok(vs) => vs,
             Err(msg) => { return Err("vertex shader " + msg) },
         };
 
-        let fs_src = std::io::fs::File::open_mode(&std::path::Path::new("main.fs.glsl"), std::io::Open, std::io::Read).unwrap().read_to_end();
+        let fs_src = std::io::fs::File::open_mode(&std::path::Path::new("shaders/main.fs.glsl"), std::io::Open, std::io::Read).unwrap().read_to_end();
         let fs = match compile_shader(fs_src, gl::FRAGMENT_SHADER) {
             Ok(fs) => fs,
             Err(msg) => { return Err("fragment shader " + msg) },
