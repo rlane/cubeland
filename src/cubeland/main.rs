@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #[feature(globs)];
+#[feature(macro_rules)];
 
 extern mod native;
 extern mod extra;
@@ -42,6 +43,7 @@ use chunk::ChunkLoader;
 #[link(name="GLU")]
 extern {}
 
+mod offset_of;
 mod chunk;
 mod ratelimiter;
 mod texture;

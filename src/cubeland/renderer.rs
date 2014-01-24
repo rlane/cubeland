@@ -212,7 +212,7 @@ impl Renderer {
             gl::VertexAttribPointer(self.res.attr_blocktype, 1, gl::FLOAT,
                                     gl::FALSE as GLboolean,
                                     std::mem::size_of::<chunk::VertexData>() as GLint,
-                                    std::cast::transmute(std::mem::size_of::<Vec3<f32>>()));
+                                    std::cast::transmute(offset_of!(chunk::VertexData, blocktype)));
 
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, mesh.element_buffer);
         }
