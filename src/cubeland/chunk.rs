@@ -49,6 +49,12 @@ pub enum BlockType {
     BlockWater = 4,
 }
 
+// Layout of the vertex buffer sent to the GPU
+pub struct VertexData {
+    position : Vec3<f32>,
+    blocktype : f32,
+}
+
 pub struct ChunkLoader {
     seed : u32,
     cache : HashMap<(i64, i64), ~Chunk>,
@@ -138,7 +144,6 @@ impl Map {
 
 pub struct Mesh {
     vertex_buffer: GLuint,
-    blocktype_buffer: GLuint,
     element_buffer: GLuint,
     face_ranges: [(uint, uint), ..NUM_FACES],
 }
@@ -147,7 +152,6 @@ impl Drop for Mesh {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteBuffers(1, &self.vertex_buffer);
-            gl::DeleteBuffers(1, &self.blocktype_buffer);
             gl::DeleteBuffers(1, &self.element_buffer);
         }
     }
@@ -262,14 +266,12 @@ fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, map: &mut Map) {
 fn mesh_gen(map: &Map) -> ~Mesh {
     let start_time = precise_time_ns();
 
-    let mut vertices : ~[Vec3<f32>] = ~[];
-    let mut blocktypes : ~[f32] = ~[];
+    let mut vertices : ~[VertexData] = ~[];
     let mut elements : ~[GLuint] = ~[];
 
     static expected_vertices : uint = 8000;
     static expected_elements : uint = expected_vertices * 3 / 2;
     vertices.reserve(expected_vertices);
-    blocktypes.reserve(expected_vertices);
     elements.reserve(expected_elements);
 
     let mut face_ranges = [(0, 0), ..6];
@@ -330,8 +332,10 @@ fn mesh_gen(map: &Map) -> ~Mesh {
 
                     let vertex_offset = vertices.len();
                     for v in face.vertices.iter() {
-                        vertices.push(v.mul_v(&dim_f).add_v(&block_position));
-                        blocktypes.push(block.blocktype as f32);
+                        vertices.push(VertexData {
+                            position: v.mul_v(&dim_f).add_v(&block_position),
+                            blocktype: block.blocktype as f32,
+                        });
                     }
 
                     for e in face_elements.iter() {
@@ -345,7 +349,6 @@ fn mesh_gen(map: &Map) -> ~Mesh {
     }
 
     let mut vertex_buffer = 0;
-    let mut blocktype_buffer = 0;
     let mut element_buffer = 0;
 
     if !elements.is_empty() {
@@ -354,16 +357,8 @@ fn mesh_gen(map: &Map) -> ~Mesh {
             gl::GenBuffers(1, &mut vertex_buffer);
             gl::BindBuffer(gl::ARRAY_BUFFER, vertex_buffer);
             gl::BufferData(gl::ARRAY_BUFFER,
-                        (vertices.len() * std::mem::size_of::<Vec3<f32>>()) as GLsizeiptr,
+                        (vertices.len() * std::mem::size_of::<VertexData>()) as GLsizeiptr,
                         cast::transmute(&vertices[0]),
-                        gl::STATIC_DRAW);
-
-            // Create a Vertex Buffer Object and copy the blocktype data to it
-            gl::GenBuffers(1, &mut blocktype_buffer);
-            gl::BindBuffer(gl::ARRAY_BUFFER, blocktype_buffer);
-            gl::BufferData(gl::ARRAY_BUFFER,
-                        (blocktypes.len() * std::mem::size_of::<f32>()) as GLsizeiptr,
-                        cast::transmute(&blocktypes[0]),
                         gl::STATIC_DRAW);
 
             // Create a Vertex Buffer Object and copy the element data to it
@@ -384,7 +379,6 @@ fn mesh_gen(map: &Map) -> ~Mesh {
 
     ~Mesh {
         vertex_buffer: vertex_buffer,
-        blocktype_buffer: blocktype_buffer,
         element_buffer: element_buffer,
         face_ranges: face_ranges,
     }

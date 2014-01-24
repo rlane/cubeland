@@ -206,11 +206,13 @@ impl Renderer {
         unsafe {
             gl::BindBuffer(gl::ARRAY_BUFFER, mesh.vertex_buffer);
             gl::VertexAttribPointer(self.res.attr_position, 3, gl::FLOAT,
-                                    gl::FALSE as GLboolean, 0, ptr::null());
-
-            gl::BindBuffer(gl::ARRAY_BUFFER, mesh.blocktype_buffer);
+                                    gl::FALSE as GLboolean,
+                                    std::mem::size_of::<chunk::VertexData>() as GLint,
+                                    ptr::null());
             gl::VertexAttribPointer(self.res.attr_blocktype, 1, gl::FLOAT,
-                                    gl::FALSE as GLboolean, 0, ptr::null());
+                                    gl::FALSE as GLboolean,
+                                    std::mem::size_of::<chunk::VertexData>() as GLint,
+                                    std::cast::transmute(std::mem::size_of::<Vec3<f32>>()));
 
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, mesh.element_buffer);
         }
