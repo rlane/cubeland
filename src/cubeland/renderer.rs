@@ -30,6 +30,7 @@ use cgmath::matrix::Matrix;
 use cgmath::matrix::Mat3;
 use cgmath::matrix::Mat4;
 use cgmath::matrix::ToMat4;
+use cgmath::vector::EuclideanVector;
 use cgmath::vector::Vector;
 use cgmath::vector::Vec2;
 use cgmath::vector::Vec3;
@@ -137,7 +138,14 @@ impl Renderer {
         let clip_transform = projection.mul_m(&camera);
 
         for chunk in chunks.iter() {
-            let chunk_pos = Vec4::new(chunk.x as f32, 0.0f32, chunk.z as f32, 0.0f32);
+            /* Calculate drop due to surface curvature */
+            static planet_radius : f32 = 6371000.0f32 / 5000.0f32;
+            let horiz_dist = (Vec2 { x: camera_position.x, y: camera_position.z }).
+                sub_v(&Vec2 { x: chunk.x as f32, y: chunk.z as f32 }).length();
+            let adj_horiz_dist = (horiz_dist - 100f32).max(&0.0f32);
+            let drop = planet_radius - (planet_radius.pow(&2.0f32) - adj_horiz_dist.pow(&2.0f32)).sqrt();
+
+            let chunk_pos = Vec4::new(chunk.x as f32, -drop, chunk.z as f32, 0.0f32);
 
             if view_frustum_cull(&clip_transform, &chunk_pos) {
                 continue;

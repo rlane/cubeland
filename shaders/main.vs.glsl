@@ -19,7 +19,6 @@ varying float frag_fog_factor;
 const vec4 light_diffuse = vec4(0.8, 0.8, 0.8, 0.0);
 const vec4 light_ambient = vec4(0.2, 0.2, 0.2, 1.0);
 
-const float planet_radius = 6371000.0 / 5000.0;
 const float fog_density = 0.003;
 const float tex_size = 128.0;
 
