@@ -138,7 +138,6 @@ impl Map {
 
 pub struct Mesh {
     vertex_buffer: GLuint,
-    normal_buffer: GLuint,
     blocktype_buffer: GLuint,
     element_buffer: GLuint,
     face_ranges: [(uint, uint), ..NUM_FACES],
@@ -148,7 +147,6 @@ impl Drop for Mesh {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteBuffers(1, &self.vertex_buffer);
-            gl::DeleteBuffers(1, &self.normal_buffer);
             gl::DeleteBuffers(1, &self.blocktype_buffer);
             gl::DeleteBuffers(1, &self.element_buffer);
         }
@@ -265,14 +263,12 @@ fn mesh_gen(map: &Map) -> ~Mesh {
     let start_time = precise_time_ns();
 
     let mut vertices : ~[Vec3<f32>] = ~[];
-    let mut normals : ~[Vec3<f32>] = ~[];
     let mut blocktypes : ~[f32] = ~[];
     let mut elements : ~[GLuint] = ~[];
 
     static expected_vertices : uint = 8000;
     static expected_elements : uint = expected_vertices * 3 / 2;
     vertices.reserve(expected_vertices);
-    normals.reserve(expected_vertices);
     blocktypes.reserve(expected_vertices);
     elements.reserve(expected_elements);
 
@@ -335,7 +331,6 @@ fn mesh_gen(map: &Map) -> ~Mesh {
                     let vertex_offset = vertices.len();
                     for v in face.vertices.iter() {
                         vertices.push(v.mul_v(&dim_f).add_v(&block_position));
-                        normals.push(face.normal);
                         blocktypes.push(block.blocktype as f32);
                     }
 
@@ -350,7 +345,6 @@ fn mesh_gen(map: &Map) -> ~Mesh {
     }
 
     let mut vertex_buffer = 0;
-    let mut normal_buffer = 0;
     let mut blocktype_buffer = 0;
     let mut element_buffer = 0;
 
@@ -362,14 +356,6 @@ fn mesh_gen(map: &Map) -> ~Mesh {
             gl::BufferData(gl::ARRAY_BUFFER,
                         (vertices.len() * std::mem::size_of::<Vec3<f32>>()) as GLsizeiptr,
                         cast::transmute(&vertices[0]),
-                        gl::STATIC_DRAW);
-
-            // Create a Vertex Buffer Object and copy the normal data to it
-            gl::GenBuffers(1, &mut normal_buffer);
-            gl::BindBuffer(gl::ARRAY_BUFFER, normal_buffer);
-            gl::BufferData(gl::ARRAY_BUFFER,
-                        (normals.len() * std::mem::size_of::<Vec3<f32>>()) as GLsizeiptr,
-                        cast::transmute(&normals[0]),
                         gl::STATIC_DRAW);
 
             // Create a Vertex Buffer Object and copy the blocktype data to it
@@ -398,7 +384,6 @@ fn mesh_gen(map: &Map) -> ~Mesh {
 
     ~Mesh {
         vertex_buffer: vertex_buffer,
-        normal_buffer: normal_buffer,
         blocktype_buffer: blocktype_buffer,
         element_buffer: element_buffer,
         face_ranges: face_ranges,

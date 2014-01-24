@@ -98,7 +98,6 @@ impl Renderer {
         gl::Uniform1i(self.res.uniform_texture, 0);
         gl::BindTexture(gl::TEXTURE_2D, self.res.texture);
         gl::EnableVertexAttribArray(self.res.attr_position);
-        gl::EnableVertexAttribArray(self.res.attr_normal);
         gl::EnableVertexAttribArray(self.res.attr_blocktype);
 
         gl::Viewport(0, 0, self.window_size.x as GLint, self.window_size.y as GLint);
@@ -158,6 +157,10 @@ impl Renderer {
                     continue;
                 }
 
+                unsafe {
+                    gl::Uniform3fv(self.res.uniform_normal, 1, face.normal.ptr());
+                }
+
                 let (offset, count) = mesh.face_ranges[face.index];
                 unsafe {
                     gl::DrawElements(
@@ -205,10 +208,6 @@ impl Renderer {
             gl::VertexAttribPointer(self.res.attr_position, 3, gl::FLOAT,
                                     gl::FALSE as GLboolean, 0, ptr::null());
 
-            gl::BindBuffer(gl::ARRAY_BUFFER, mesh.normal_buffer);
-            gl::VertexAttribPointer(self.res.attr_normal as GLuint, 3, gl::FLOAT,
-                                    gl::FALSE as GLboolean, 0, ptr::null());
-
             gl::BindBuffer(gl::ARRAY_BUFFER, mesh.blocktype_buffer);
             gl::VertexAttribPointer(self.res.attr_blocktype, 1, gl::FLOAT,
                                     gl::FALSE as GLboolean, 0, ptr::null());
@@ -229,8 +228,8 @@ struct Resources {
     uniform_chunk_position: GLint,
     uniform_texture: GLint,
     uniform_light_direction: GLint,
+    uniform_normal: GLint,
     attr_position: GLuint,
-    attr_normal: GLuint,
     attr_blocktype: GLuint,
 }
 
@@ -261,11 +260,10 @@ impl Resources {
         let uniform_chunk_position = unsafe { "chunk_position".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
         let uniform_texture = unsafe { "texture".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
         let uniform_light_direction = unsafe { "light_direction".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
+        let uniform_normal = unsafe { "normal".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
 
         let attr_position = unsafe { "position".with_c_str(|ptr| gl::GetAttribLocation(program, ptr) as GLuint) };
         assert!(attr_position as u32 != gl::INVALID_VALUE);
-        let attr_normal = unsafe { "normal".with_c_str(|ptr| gl::GetAttribLocation(program, ptr) as GLuint) };
-        assert!(attr_normal as u32 != gl::INVALID_VALUE);
         let attr_blocktype = unsafe { "blocktype".with_c_str(|ptr| gl::GetAttribLocation(program, ptr) as GLuint) };
         assert!(attr_blocktype as u32 != gl::INVALID_VALUE);
 
@@ -280,8 +278,8 @@ impl Resources {
             uniform_chunk_position: uniform_chunk_position,
             uniform_texture: uniform_texture,
             uniform_light_direction: uniform_light_direction,
+            uniform_normal: uniform_normal,
             attr_position: attr_position,
-            attr_normal: attr_normal,
             attr_blocktype: attr_blocktype,
         })
     }

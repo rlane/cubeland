@@ -5,9 +5,9 @@ uniform mat4 projection;
 uniform vec3 camera_position;
 uniform vec3 light_direction;
 uniform vec3 chunk_position;
+uniform vec3 normal;
 
 attribute vec3 position;
-attribute vec3 normal;
 attribute float blocktype;
 
 varying vec4 frag_diffuse_factor;
