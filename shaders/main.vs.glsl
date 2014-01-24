@@ -4,6 +4,7 @@ uniform mat4 view;
 uniform mat4 projection;
 uniform vec3 camera_position;
 uniform vec3 light_direction;
+uniform vec3 chunk_position;
 
 attribute vec3 position;
 attribute vec3 normal;
@@ -28,13 +29,8 @@ const float BLOCK_DIRT = 3.0;
 const float BLOCK_WATER = 4.0;
 
 void main() {
-    float horiz_dist = length(camera_position - position);
-
-    /* Curvature of the planet */
-    vec3 curved_position = position;
-    //curved_position.y -= planet_radius - sqrt(pow(planet_radius, 2.0) - pow(horiz_dist, 2.0));
-
-    vec4 eye_position = view * vec4(curved_position, 1.0);
+    vec3 world_position = chunk_position + position;
+    vec4 eye_position = view * vec4(world_position, 1.0);
 
     gl_Position = projection * eye_position;
 

@@ -172,7 +172,7 @@ pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64) -> ~Chunk {
 
     terrain_gen(seed, chunk_x, chunk_z, map);
 
-    let mesh = mesh_gen(chunk_x, chunk_z, map);
+    let mesh = mesh_gen(map);
 
     return ~Chunk {
         x: chunk_x,
@@ -261,7 +261,7 @@ fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, map: &mut Map) {
              (end_time - start_time)/1000);
 }
 
-fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map) -> ~Mesh {
+fn mesh_gen(map: &Map) -> ~Mesh {
     let start_time = precise_time_ns();
 
     let mut vertices : ~[Vec3<f32>] = ~[];
@@ -277,12 +277,6 @@ fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map) -> ~Mesh {
     elements.reserve(expected_elements);
 
     let mut face_ranges = [(0, 0), ..6];
-
-    let chunk_position = Vec3 {
-        x: chunk_x as f32,
-        y: 0.0f32,
-        z: chunk_z as f32,
-    };
 
     for face in faces.iter() {
         let num_elements_start = elements.len();
@@ -340,7 +334,7 @@ fn mesh_gen(chunk_x: i64, chunk_z: i64, map: &Map) -> ~Mesh {
 
                     let vertex_offset = vertices.len();
                     for v in face.vertices.iter() {
-                        vertices.push(v.mul_v(&dim_f).add_v(&block_position).add_v(&chunk_position));
+                        vertices.push(v.mul_v(&dim_f).add_v(&block_position));
                         normals.push(face.normal);
                         blocktypes.push(block.blocktype as f32);
                     }

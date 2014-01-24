@@ -147,6 +147,10 @@ impl Renderer {
             let mesh : &Mesh = chunk.mesh;
             self.bind_mesh(mesh);
 
+            unsafe {
+                gl::Uniform3fv(self.res.uniform_chunk_position, 1, chunk_pos.ptr());
+            }
+
             for face in chunk::faces.iter() {
                 if !face_visible(face, chunk.x, chunk.z,
                                 camera_position.x as i64,
@@ -222,6 +226,7 @@ struct Resources {
     uniform_view: GLint,
     uniform_projection: GLint,
     uniform_camera_position: GLint,
+    uniform_chunk_position: GLint,
     uniform_texture: GLint,
     uniform_light_direction: GLint,
     attr_position: GLuint,
@@ -253,6 +258,7 @@ impl Resources {
         let uniform_view = unsafe { "view".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
         let uniform_projection = unsafe { "projection".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
         let uniform_camera_position = unsafe { "camera_position".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
+        let uniform_chunk_position = unsafe { "chunk_position".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
         let uniform_texture = unsafe { "texture".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
         let uniform_light_direction = unsafe { "light_direction".with_c_str(|ptr| gl::GetUniformLocation(program, ptr)) };
 
@@ -271,6 +277,7 @@ impl Resources {
             uniform_view: uniform_view,
             uniform_projection: uniform_projection,
             uniform_camera_position: uniform_camera_position,
+            uniform_chunk_position: uniform_chunk_position,
             uniform_texture: uniform_texture,
             uniform_light_direction: uniform_light_direction,
             attr_position: attr_position,
