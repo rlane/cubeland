@@ -172,14 +172,8 @@ fn main() {
 
             camera.tick(tick_length);
 
-            let camera_position_i64 = Vec3 {
-                x: camera.position.x as i64,
-                y: 0,
-                z: camera.position.z as i64
-            };
-
             {
-                let chunks = find_nearby_chunks(&chunk_loader, camera_position_i64);
+                let chunks = find_nearby_chunks(&chunk_loader, camera.position);
 
                 renderer.render(
                     chunks,
@@ -189,7 +183,7 @@ fn main() {
 
             window.swap_buffers();
 
-            request_nearby_chunks(&mut chunk_loader, camera_position_i64);
+            request_nearby_chunks(&mut chunk_loader, camera.position);
             chunk_loader.work();
 
             check_gl("main loop");
@@ -203,28 +197,29 @@ fn main() {
     }
 }
 
-fn nearby_chunk_coords(p: Vec3<i64>) -> ~[(i64, i64)] {
+fn nearby_chunk_coords(p: Vec3<f64>) -> ~[(i64, i64)] {
     static num_chunks : uint = (VISIBLE_RADIUS * 2 + 1) * (VISIBLE_RADIUS * 2 + 1);
     static mask : i64 = !(CHUNK_SIZE as i64 - 1);
+    let cur_chunk_coord = Vec2::new(p.x as i64 & mask, p.y as i64 & mask);
 
     let chunk_coord = |v: Vec2<i64>| -> (i64, i64) {
         (
-            (p.x & mask) + v.x*CHUNK_SIZE as i64,
-            (p.z & mask) + v.y*CHUNK_SIZE as i64
+            cur_chunk_coord.x + v.x*CHUNK_SIZE as i64,
+            cur_chunk_coord.y + v.y*CHUNK_SIZE as i64
         )
     };
 
     Spiral::<i64>::new(num_chunks).map(chunk_coord).to_owned_vec()
 }
 
-fn find_nearby_chunks<'a>(chunk_loader: &'a ChunkLoader, p: Vec3<i64>) -> ~[&'a ~Chunk] {
+fn find_nearby_chunks<'a>(chunk_loader: &'a ChunkLoader, p: Vec3<f64>) -> ~[&'a ~Chunk] {
     let coords = nearby_chunk_coords(p);
     coords.iter().
         filter_map(|&c| chunk_loader.get(c)).
         to_owned_vec()
 }
 
-fn request_nearby_chunks(chunk_loader: &mut ChunkLoader, p: Vec3<i64>) {
+fn request_nearby_chunks(chunk_loader: &mut ChunkLoader, p: Vec3<f64>) {
     let coords = nearby_chunk_coords(p);
     for &c in coords.iter() {
         chunk_loader.request(c);
