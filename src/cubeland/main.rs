@@ -27,12 +27,10 @@ use std::libc;
 use gl::types::*;
 
 use cgmath::matrix::Matrix;
-use cgmath::matrix::Mat3;
 use cgmath::matrix::ToMat4;
 use cgmath::vector::Vector;
 use cgmath::vector::Vec2;
 use cgmath::vector::Vec3;
-use cgmath::angle::rad;
 use cgmath::ptr::Ptr;
 
 use spiral::Spiral;
@@ -49,12 +47,11 @@ mod ratelimiter;
 mod texture;
 mod spiral;
 mod renderer;
+mod camera;
 
 pub static VISIBLE_RADIUS: uint = 12;
 pub static CHUNK_SIZE: uint = 32;
 pub static WORLD_SEED: u32 = 42;
-
-static CAMERA_SPEED : f32 = 30.0f32;
 
 static DEFAULT_WINDOW_SIZE : Vec2<u32> = Vec2 { x: 800, y: 600 };
 
@@ -87,6 +84,8 @@ fn main() {
 
         let mut chunk_loader = ChunkLoader::new(WORLD_SEED);
 
+        let mut camera = camera::Camera::new(Vec3::new(0.0, 30.0, 40.0));
+
         let (key_port, key_chan) = std::comm::Chan::new();
         window.set_key_callback(~KeyContext { chan: key_chan });
 
@@ -96,14 +95,9 @@ fn main() {
         let mut fps_display_limiter = ratelimiter::RateLimiter::new(1000*1000*1000);
         let mut fps_frame_counter = 0;
 
-        let mut camera_position = Vec3::<f32>::new(0.0f32, 30.0f32, 40.0f32);
-
         let mut last_tick = extra::time::precise_time_ns();
 
         let mut grabbed = true;
-
-        let mut camera_angle_x = 0.0;
-        let mut camera_angle_y = 0.0;
 
         while !window.should_close() {
             glfw::poll_events();
@@ -119,6 +113,32 @@ fn main() {
 
             loop {
                 match key_port.try_recv() {
+                    // Camera movement
+                    Some((glfw::Press, glfw::KeyW)) |
+                    Some((glfw::Release, glfw::KeyS)) => {
+                        camera.accelerate(Vec3::new(0.0, 0.0, -1.0));
+                    },
+                    Some((glfw::Press, glfw::KeyS)) |
+                    Some((glfw::Release, glfw::KeyW)) => {
+                        camera.accelerate(Vec3::new(0.0, 0.0, 1.0));
+                    },
+                    Some((glfw::Press, glfw::KeyA)) |
+                    Some((glfw::Release, glfw::KeyD)) => {
+                        camera.accelerate(Vec3::new(-1.0, 0.0, 0.0));
+                    },
+                    Some((glfw::Press, glfw::KeyD)) |
+                    Some((glfw::Release, glfw::KeyA)) => {
+                        camera.accelerate(Vec3::new(1.0, 0.0, 0.0));
+                    },
+                    Some((glfw::Press, glfw::KeyLeftControl)) |
+                    Some((glfw::Release, glfw::KeySpace)) => {
+                        camera.accelerate(Vec3::new(0.0, -1.0, 0.0));
+                    },
+                    Some((glfw::Press, glfw::KeySpace)) |
+                    Some((glfw::Release, glfw::KeyLeftControl)) => {
+                        camera.accelerate(Vec3::new(0.0, 1.0, 0.0));
+                    },
+
                     Some((glfw::Press, glfw::KeyR)) => {
                         renderer.reload_resources();
                     },
@@ -143,54 +163,19 @@ fn main() {
 
             if grabbed {
                 let (cursor_x, cursor_y) = window.get_cursor_pos();
-                camera_angle_y = ((cursor_x * 0.0005) % 1.0) * std::f64::consts::PI * 2.0;
-                camera_angle_x = ((cursor_y * 0.0005) % 1.0) * std::f64::consts::PI * 2.0;
-            }
-
-            let mut camera_velocity = Vec3::<f32>::new(0.0f32, 0.0f32, 0.0f32);
-
-            match window.get_key(glfw::KeySpace) {
-                glfw::Press => { camera_velocity.y += 1.0f32 }
-                _ => {}
-            }
-
-            match window.get_key(glfw::KeyLeftControl) {
-                glfw::Press => { camera_velocity.y += -1.0f32 }
-                _ => {}
-            }
-
-            match window.get_key(glfw::KeyS) {
-                glfw::Press => { camera_velocity.z += 1.0f32 }
-                _ => {}
-            }
-
-            match window.get_key(glfw::KeyW) {
-                glfw::Press => { camera_velocity.z += -1.0f32 }
-                _ => {}
-            }
-
-            match window.get_key(glfw::KeyD) {
-                glfw::Press => { camera_velocity.x += 1.0f32 }
-                _ => {}
-            }
-
-            match window.get_key(glfw::KeyA) {
-                glfw::Press => { camera_velocity.x += -1.0f32 }
-                _ => {}
+                camera.look(Vec2 { x: cursor_x, y: cursor_y });
             }
 
             let now = extra::time::precise_time_ns();
-            let tick_length = (now - last_tick) as f32 / (1000 * 1000 * 1000) as f32;
+            let tick_length = (now - last_tick) as f64 / (1000.0 * 1000.0 * 1000.0);
             last_tick = now;
 
-            let inv_camera_rotation = Mat3::<f32>::from_euler(rad(-camera_angle_x as f32), rad(-camera_angle_y as f32), rad(0.0f32));
-            let absolute_camera_velocity = inv_camera_rotation.mul_v(&camera_velocity).mul_s(CAMERA_SPEED).mul_s(tick_length);
-            camera_position.add_self_v(&absolute_camera_velocity);
+            camera.tick(tick_length);
 
             let camera_position_i64 = Vec3 {
-                x: camera_position.x as i64,
+                x: camera.position.x as i64,
                 y: 0,
-                z: camera_position.z as i64
+                z: camera.position.z as i64
             };
 
             {
@@ -198,8 +183,8 @@ fn main() {
 
                 renderer.render(
                     chunks,
-                    camera_position,
-                    Vec2 { x: camera_angle_x, y: camera_angle_y });
+                    Vec3 { x: camera.position.x as f32, y: camera.position.y as f32, z: camera.position.z as f32 },
+                    camera.angle)
             }
 
             window.swap_buffers();
