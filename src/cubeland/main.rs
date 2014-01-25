@@ -50,7 +50,7 @@ mod texture;
 mod spiral;
 mod renderer;
 
-pub static VISIBLE_RADIUS: uint = 8;
+pub static VISIBLE_RADIUS: uint = 12;
 pub static CHUNK_SIZE: uint = 32;
 pub static WORLD_SEED: u32 = 42;
 
