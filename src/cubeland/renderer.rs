@@ -137,17 +137,22 @@ impl Renderer {
 
         let clip_transform = projection.mul_m(&camera);
 
+        let camera_chunk_coord = Vec2::new(camera_position.x as i64, camera_position.z as i64).
+                                       div_s(CHUNK_SIZE as i64);
+
         for chunk in chunks.iter() {
+            let mut chunk_pos = Vec3::new(chunk.coord.x as f32, 0.0f32, chunk.coord.y as f32).
+                                      mul_s(CHUNK_SIZE as f32);
+
             /* Calculate drop due to surface curvature */
             static planet_radius : f32 = 6371000.0f32 / 5000.0f32;
-            let horiz_dist = (Vec2 { x: camera_position.x, y: camera_position.z }).
-                sub_v(&Vec2 { x: chunk.x as f32, y: chunk.z as f32 }).length();
+            let horiz_dist = (Vec3 { x: camera_position.x, y: 0.0f32, z: camera_position.z }).
+                sub_v(&chunk_pos).length();
             let adj_horiz_dist = (horiz_dist - 100f32).max(&0.0f32);
             let drop = planet_radius - (planet_radius.pow(&2.0f32) - adj_horiz_dist.pow(&2.0f32)).sqrt();
+            chunk_pos.y -= drop;
 
-            let chunk_pos = Vec4::new(chunk.x as f32, -drop, chunk.z as f32, 0.0f32);
-
-            if view_frustum_cull(&clip_transform, &chunk_pos) {
+            if view_frustum_cull(&clip_transform, &chunk_pos.extend(0.0f32)) {
                 continue;
             }
 
@@ -159,9 +164,7 @@ impl Renderer {
             }
 
             for face in chunk::faces.iter() {
-                if !face_visible(face, chunk.x, chunk.z,
-                                camera_position.x as i64,
-                                camera_position.z as i64) {
+                if !face_visible(face, chunk.coord, camera_chunk_coord) {
                     continue;
                 }
 
@@ -347,15 +350,14 @@ fn view_frustum_cull(m : &Mat4<f32>, p: &Vec4<f32>) -> bool {
     return false;
 }
 
-fn face_visible(face : &chunk::Face, cx : i64, cz : i64, px : i64, pz : i64) -> bool {
-    let dx = px - cx;
-    let dz = pz - cz;
+fn face_visible(face : &chunk::Face, a: Vec2<i64>, b: Vec2<i64>) -> bool {
+    let dp = b.sub_v(&a);
 
     match face.index {
-        0 => dz >= 0,
-        1 => dz <= CHUNK_SIZE as i64,
-        2 => dx >= 0,
-        3 => dx <= CHUNK_SIZE as i64,
+        0 => dp.y >= 0,
+        1 => dp.y <= 1,
+        2 => dp.x >= 0,
+        3 => dp.x <= 1,
         4 => true,
         5 => true,
         _ => unreachable!()

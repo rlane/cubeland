@@ -29,6 +29,7 @@ use extra::bitv::BitvSet;
 use gl::types::*;
 
 use cgmath::vector::Vector;
+use cgmath::vector::Vec2;
 use cgmath::vector::Vec3;
 
 use noise::Perlin;
@@ -57,8 +58,8 @@ pub struct VertexData {
 
 pub struct ChunkLoader {
     seed : u32,
-    cache : HashMap<(i64, i64), ~Chunk>,
-    needed_chunks : ~[(i64, i64)],
+    cache : HashMap<Vec2<i64>, ~Chunk>,
+    needed_chunks : ~[Vec2<i64>],
 }
 
 impl ChunkLoader {
@@ -70,11 +71,11 @@ impl ChunkLoader {
         }
     }
 
-    pub fn get<'a>(&'a self, c: (i64, i64)) -> Option<&'a ~Chunk> {
+    pub fn get<'a>(&'a self, c: Vec2<i64>) -> Option<&'a ~Chunk> {
         self.cache.find(&c)
     }
 
-    pub fn request(&mut self, c: (i64, i64)) {
+    pub fn request(&mut self, c: Vec2<i64>) {
         match self.cache.find_mut(&c) {
             Some(chunk) => {
                 chunk.touch();
@@ -92,10 +93,10 @@ impl ChunkLoader {
             return;
         }
 
-        let (cx, cz) = self.needed_chunks.shift();
-        println!("loading chunk ({}, {})", cx, cz);
-        let chunk = chunk_gen(self.seed, cx, cz);
-        self.cache.insert((cx, cz), chunk);
+        let coord = self.needed_chunks.shift();
+        println!("loading chunk ({}, {})", coord.x, coord.y);
+        let chunk = chunk_gen(self.seed, coord);
+        self.cache.insert(coord, chunk);
 
         while self.cache.len() > MAX_CHUNKS {
             let (&k, _) = self.cache.iter().min_by(|&(_, chunk)| chunk.used_time).unwrap();
@@ -105,8 +106,7 @@ impl ChunkLoader {
 }
 
 pub struct Chunk {
-    x: i64,
-    z: i64,
+    coord: Vec2<i64>,
     map: ~Map,
     mesh: ~Mesh,
     used_time: u64,
@@ -166,19 +166,20 @@ pub struct Face {
     vertices: [Vec3<f32>, ..4],
 }
 
-pub fn chunk_gen(seed: u32, chunk_x: i64, chunk_z: i64) -> ~Chunk {
+pub fn chunk_gen(seed: u32, coord: Vec2<i64>) -> ~Chunk {
     let def_block = Block { blocktype: BlockAir };
     let mut map = ~Map {
         blocks: [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
     };
 
-    terrain_gen(seed, chunk_x, chunk_z, map);
+    let p = Vec2::new(coord.x as f64, coord.y as f64).mul_s(CHUNK_SIZE as f64);
+
+    terrain_gen(seed, p, map);
 
     let mesh = mesh_gen(map);
 
     return ~Chunk {
-        x: chunk_x,
-        z: chunk_z,
+        coord: coord,
         map: map,
         mesh: mesh,
         used_time: extra::time::precise_time_ns(),
@@ -196,7 +197,7 @@ fn block_exists(map: &Map, x: int, y: int, z: int) -> bool {
     }
 }
 
-fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, map: &mut Map) {
+fn terrain_gen(seed: u32, p: Vec2<f64>, map: &mut Map) {
     let start_time = precise_time_ns();
 
     let perlin1 = Perlin::from_seed([seed as uint]);
@@ -207,20 +208,20 @@ fn terrain_gen(seed: u32, chunk_x: i64, chunk_z: i64, map: &mut Map) {
     for block_x in std::iter::range(0, CHUNK_SIZE) {
         for block_z in std::iter::range(0, CHUNK_SIZE) {
             let noise1 = perlin1.gen([
-                (chunk_x + block_x as i64) as f64 * 0.07,
-                (chunk_z + block_z as i64) as f64 * 0.04
+                (p.x + block_x as f64) * 0.07,
+                (p.y + block_z as f64) * 0.04
             ]);
             let noise2 = perlin2.gen([
-                (chunk_x + block_x as i64) as f64 * 0.05,
-                (chunk_z + block_z as i64) as f64 * 0.05
+                (p.x + block_x as f64) * 0.05,
+                (p.y + block_z as f64) * 0.05
             ]);
             let noise3 = perlin3.gen([
-                (chunk_x + block_x as i64) as f64 * 0.005,
-                (chunk_z + block_z as i64) as f64 * 0.005
+                (p.x + block_x as f64) * 0.005,
+                (p.y + block_z as f64) * 0.005
             ]);
             let noise4 = perlin4.gen([
-                (chunk_x + block_x as i64) as f64 * 0.001,
-                (chunk_z + block_z as i64) as f64 * 0.001
+                (p.x + block_x as f64) * 0.001,
+                (p.y + block_z as f64) * 0.001
             ]);
 
             let base_height = 15.0;
