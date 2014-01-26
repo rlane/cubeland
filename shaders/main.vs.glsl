@@ -33,13 +33,8 @@ void main() {
 
     gl_Position = projection * eye_position;
 
-    if (normal.x != 0.0) {
-        frag_texcoord1 = position.yz;
-    } else if (normal.y != 0.0) {
-        frag_texcoord1 = position.xz;
-    } else {
-        frag_texcoord1 = position.xy;
-    }
+    frag_texcoord1 = vec2(dot(normal.zxy, position),
+                          dot(normal.yzx, position));
 
     frag_texcoord1 /= tex_size;
     frag_texcoord2 = frag_texcoord1;
