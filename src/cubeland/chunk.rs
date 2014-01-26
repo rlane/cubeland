@@ -18,10 +18,9 @@ extern mod gl;
 extern mod cgmath;
 extern mod noise;
 
+use std;
 use std::cast;
 use std::hashmap::HashMap;
-use std;
-use std::num::clamp;
 
 use extra::time::precise_time_ns;
 use extra::bitv::BitvSet;
@@ -31,10 +30,9 @@ use gl::types::*;
 use cgmath::vector::Vector;
 use cgmath::vector::Vec3;
 
-use noise::Perlin;
-
 use CHUNK_SIZE;
 use VISIBLE_RADIUS;
+use terrain::Terrain;
 
 static NUM_FACES : uint = 6;
 static MAX_CHUNKS : uint = (VISIBLE_RADIUS*2)*(VISIBLE_RADIUS*2)*2;
@@ -106,7 +104,7 @@ impl ChunkLoader {
 
 pub struct Chunk {
     coord: Vec3<i64>,
-    map: ~Map,
+    terrain: ~Terrain,
     mesh: ~Mesh,
     used_time: u64,
 }
@@ -117,27 +115,13 @@ impl Chunk {
     }
 }
 
-struct Block {
+pub struct Block {
     blocktype: BlockType,
 }
 
 impl Block {
     pub fn is_opaque(&self) -> bool {
         self.blocktype != BlockAir
-    }
-}
-
-struct Map {
-    blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
-}
-
-impl Map {
-    pub fn index<'a>(&'a self, x: int, y: int, z: int) -> Option<&'a Block> {
-        if x < 0 || x >= CHUNK_SIZE as int || y < 0 || y >= CHUNK_SIZE as int || z < 0 || z >= CHUNK_SIZE as int {
-            None
-        } else {
-            Some(&self.blocks[x][y][z])
-        }
     }
 }
 
@@ -166,104 +150,32 @@ pub struct Face {
 }
 
 pub fn chunk_gen(seed: u32, coord: Vec3<i64>) -> ~Chunk {
-    let def_block = Block { blocktype: BlockAir };
-    let mut map = ~Map {
-        blocks: [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
-    };
-
     let p = Vec3::new(coord.x as f64, coord.y as f64, coord.z as f64).mul_s(CHUNK_SIZE as f64);
 
-    terrain_gen(seed, p, map);
+    let terrain = Terrain::gen(seed, p);
 
-    let mesh = mesh_gen(map);
+    let mesh = mesh_gen(terrain);
 
     return ~Chunk {
         coord: coord,
-        map: map,
+        terrain: terrain,
         mesh: mesh,
         used_time: extra::time::precise_time_ns(),
     };
 }
 
-fn block_exists(map: &Map, x: int, y: int, z: int) -> bool {
+fn block_exists(t: &Terrain, x: int, y: int, z: int) -> bool {
     if y < 0 {
         return true;
     }
 
-    match map.index(x, y, z) {
+    match t.index(x, y, z) {
         Some(block) => block.is_opaque(),
         None => false
     }
 }
 
-fn terrain_gen(seed: u32, p: Vec3<f64>, map: &mut Map) {
-    let start_time = precise_time_ns();
-
-    let perlin1 = Perlin::from_seed([seed as uint]);
-    let perlin2 = Perlin::from_seed([seed as uint * 7]);
-    let perlin3 = Perlin::from_seed([seed as uint * 13]);
-    let perlin4 = Perlin::from_seed([seed as uint * 17]);
-
-    for block_x in std::iter::range(0, CHUNK_SIZE) {
-        for block_z in std::iter::range(0, CHUNK_SIZE) {
-            let noise1 = perlin1.gen([
-                (p.x + block_x as f64) * 0.07,
-                (p.z + block_z as f64) * 0.04
-            ]);
-            let noise2 = perlin2.gen([
-                (p.x + block_x as f64) * 0.05,
-                (p.z + block_z as f64) * 0.05
-            ]);
-            let noise3 = perlin3.gen([
-                (p.x + block_x as f64) * 0.005,
-                (p.z + block_z as f64) * 0.005
-            ]);
-            let noise4 = perlin4.gen([
-                (p.x + block_x as f64) * 0.001,
-                (p.z + block_z as f64) * 0.001
-            ]);
-
-            let base_height = 15.0;
-            let base_variance = 10.0;
-            let height = clamp(
-                (
-                    base_height +
-                    noise4 * 10.0 +
-                    base_variance *
-                        std::num::pow(noise3 + 1.0, 2.5) *
-                        noise1
-                ) as int,
-                1, CHUNK_SIZE as int - 1) as uint;
-
-            for y in range(0, height) {
-                let mut blocktype = BlockStone;
-
-                let dirt_height = (4.0 + noise2 * 8.0) as uint;
-                if (height <= 20) && (y + dirt_height >= height) {
-                    if y < height - 2 {
-                        blocktype = BlockDirt;
-                    } else {
-                        blocktype = BlockGrass;
-                    }
-                }
-
-                map.blocks[block_x][y][block_z] = Block { blocktype: blocktype };
-            }
-
-            let water_height = 10;
-            for y in range(height, water_height) {
-                map.blocks[block_x][y][block_z] = Block { blocktype: BlockWater };
-            }
-        }
-    }
-
-    let end_time = precise_time_ns();
-
-    println!("terrain gen : {}us",
-             (end_time - start_time)/1000);
-}
-
-fn mesh_gen(map: &Map) -> ~Mesh {
+fn mesh_gen(t: &Terrain) -> ~Mesh {
     let start_time = precise_time_ns();
 
     let mut vertices : ~[VertexData] = ~[];
@@ -285,13 +197,13 @@ fn mesh_gen(map: &Map) -> ~Mesh {
         for x in std::iter::range(0, CHUNK_SIZE) {
             for y in std::iter::range(0, CHUNK_SIZE) {
                 for z in std::iter::range(0, CHUNK_SIZE) {
-                    let block = &map.blocks[x][y][z];
+                    let block = &t.blocks[x][y][z];
 
                     if (block.blocktype == BlockAir) {
                         continue;
                     }
 
-                    if block_exists(map,
+                    if block_exists(t,
                                     x as int + face_normal_int.x,
                                     y as int + face_normal_int.y,
                                     z as int + face_normal_int.z) {
@@ -307,7 +219,7 @@ fn mesh_gen(map: &Map) -> ~Mesh {
             for j in std::iter::range(0, CHUNK_SIZE) {
                 for k in std::iter::range(0, CHUNK_SIZE) {
                     let Vec3 { x: x, y: y, z: z } = face.di.mul_s(i).add_v(&face.dj.mul_s(j)).add_v(&face.dk.mul_s(k));
-                    let block = &map.blocks[x][y][z];
+                    let block = &t.blocks[x][y][z];
 
                     if !unmeshed_faces.contains(x, y, z) {
                         continue;
@@ -319,7 +231,7 @@ fn mesh_gen(map: &Map) -> ~Mesh {
                         z: z as f32,
                     };
 
-                    let dim = expand_face(map, &unmeshed_faces, face, Vec3 { x: x, y: y, z: z });
+                    let dim = expand_face(t, &unmeshed_faces, face, Vec3 { x: x, y: y, z: z });
                     let dim_f = Vec3 { x: dim.x as f32, y: dim.y as f32, z: dim.z as f32 };
 
                     for dx in range(0, dim.x) {
@@ -384,14 +296,14 @@ fn mesh_gen(map: &Map) -> ~Mesh {
     }
 }
 
-fn expand_face(map : &Map,
+fn expand_face(t : &Terrain,
                unmeshed_faces : &BlockBitmap,
                face: &Face,
                p: Vec3<uint>) -> Vec3<uint> {
 
-    let len_k = run_length(map, unmeshed_faces, p, face.dk);
+    let len_k = run_length(t, unmeshed_faces, p, face.dk);
     let len_j = range(0, len_k).
-        map(|k| run_length(map, unmeshed_faces, p.add_v(&face.dk.mul_s(k)), face.dj)).
+        map(|k| run_length(t, unmeshed_faces, p.add_v(&face.dk.mul_s(k)), face.dj)).
         min().unwrap();
 
     (Vec3 { x: 1, y: 1, z: 1 }).
@@ -399,17 +311,17 @@ fn expand_face(map : &Map,
         add_v(&face.dj.mul_s(len_j - 1))
 }
 
-fn run_length(map : &Map,
+fn run_length(t : &Terrain,
               unmeshed_faces : &BlockBitmap,
               mut p: Vec3<uint>,
               dp: Vec3<uint>) -> uint {
-    let block = &map.blocks[p.x][p.y][p.z];
+    let block = &t.blocks[p.x][p.y][p.z];
     let mut len = 1;
 
     loop {
         p.add_self_v(&dp);
         if unmeshed_faces.contains(p.x, p.y, p.z) {
-            match map.index(p.x as int, p.y as int, p.z as int) {
+            match t.index(p.x as int, p.y as int, p.z as int) {
                 Some(b) if b.blocktype == block.blocktype => {
                     len += 1;
                 }

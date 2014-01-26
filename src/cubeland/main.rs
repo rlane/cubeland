@@ -48,6 +48,7 @@ mod texture;
 mod spiral;
 mod renderer;
 mod camera;
+mod terrain;
 
 pub static VISIBLE_RADIUS: uint = 12;
 pub static CHUNK_SIZE: uint = 32;
