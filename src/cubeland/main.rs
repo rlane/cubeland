@@ -24,6 +24,8 @@ extern mod noise;
 
 use std::libc;
 
+use extra::time::precise_time_ns;
+
 use gl::types::*;
 
 use cgmath::matrix::Matrix;
@@ -100,6 +102,18 @@ fn main() {
         let mut last_tick = extra::time::precise_time_ns();
 
         let mut grabbed = true;
+
+        // Preload chunks
+        {
+            let deadline = precise_time_ns() + 1000*1000*100;
+            let mut count = 0;
+            request_nearby_chunks(&mut chunk_loader, camera.position);
+            while precise_time_ns() < deadline {
+                chunk_loader.work();
+                count += 1;
+            }
+            println!("Preloaded {} chunks", count);
+        }
 
         while !window.should_close() {
             glfw::poll_events();
