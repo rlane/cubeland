@@ -40,9 +40,9 @@ pub struct VertexData {
 pub struct Face {
     index: uint,
     normal: Vec3<f32>,
-    di: Vec3<uint>,
-    dj: Vec3<uint>,
-    dk: Vec3<uint>,
+    di: Vec3<int>,
+    dj: Vec3<int>,
+    dk: Vec3<int>,
     vertices: [Vec3<f32>, ..4],
 }
 
@@ -72,10 +72,10 @@ impl Mesh {
             let face_normal_int = Vec3 { x: face.normal.x as int, y: face.normal.y as int, z: face.normal.z as int };
 
             let mut unmeshed_faces = BlockBitmap::new();
-            for x in std::iter::range(0, CHUNK_SIZE) {
-                for y in std::iter::range(0, CHUNK_SIZE) {
-                    for z in std::iter::range(0, CHUNK_SIZE) {
-                        let block = &t.blocks[x][y][z];
+            for x in std::iter::range(0, CHUNK_SIZE as int) {
+                for y in std::iter::range(0, CHUNK_SIZE as int) {
+                    for z in std::iter::range(0, CHUNK_SIZE as int) {
+                        let block = &t.get(x, y, z).unwrap();
 
                         if (block.blocktype == BlockAir) {
                             continue;
@@ -93,11 +93,11 @@ impl Mesh {
                 }
             }
 
-            for i in std::iter::range(0, CHUNK_SIZE) {
-                for j in std::iter::range(0, CHUNK_SIZE) {
-                    for k in std::iter::range(0, CHUNK_SIZE) {
+            for i in std::iter::range(0, CHUNK_SIZE as int) {
+                for j in std::iter::range(0, CHUNK_SIZE as int) {
+                    for k in std::iter::range(0, CHUNK_SIZE as int) {
                         let Vec3 { x: x, y: y, z: z } = face.di.mul_s(i).add_v(&face.dj.mul_s(j)).add_v(&face.dk.mul_s(k));
-                        let block = &t.blocks[x][y][z];
+                        let block = &t.get(x, y, z).unwrap();
 
                         if !unmeshed_faces.contains(x, y, z) {
                             continue;
@@ -189,7 +189,7 @@ fn block_exists(t: &Terrain, x: int, y: int, z: int) -> bool {
         return true;
     }
 
-    match t.index(x, y, z) {
+    match t.get(x, y, z) {
         Some(block) => block.is_opaque(),
         None => false
     }
@@ -198,7 +198,7 @@ fn block_exists(t: &Terrain, x: int, y: int, z: int) -> bool {
 fn expand_face(t : &Terrain,
                unmeshed_faces : &BlockBitmap,
                face: &Face,
-               p: Vec3<uint>) -> Vec3<uint> {
+               p: Vec3<int>) -> Vec3<int> {
 
     let len_k = run_length(t, unmeshed_faces, p, face.dk);
     let len_j = range(0, len_k).
@@ -212,15 +212,15 @@ fn expand_face(t : &Terrain,
 
 fn run_length(t : &Terrain,
               unmeshed_faces : &BlockBitmap,
-              mut p: Vec3<uint>,
-              dp: Vec3<uint>) -> uint {
-    let block = &t.blocks[p.x][p.y][p.z];
+              mut p: Vec3<int>,
+              dp: Vec3<int>) -> int {
+    let block = &t.get(p.x, p.y, p.z).unwrap();
     let mut len = 1;
 
     loop {
         p.add_self_v(&dp);
         if unmeshed_faces.contains(p.x, p.y, p.z) {
-            match t.index(p.x as int, p.y as int, p.z as int) {
+            match t.get(p.x, p.y, p.z) {
                 Some(b) if b.blocktype == block.blocktype => {
                     len += 1;
                 }
@@ -247,20 +247,20 @@ impl BlockBitmap {
         }
     }
 
-    pub fn contains(&self, x: uint, y: uint, z: uint) -> bool {
+    pub fn contains(&self, x: int, y: int, z: int) -> bool {
         self.set.contains(&BlockBitmap::index(x, y, z))
     }
 
-    pub fn insert(&mut self, x: uint, y: uint, z: uint) {
+    pub fn insert(&mut self, x: int, y: int, z: int) {
         self.set.insert(BlockBitmap::index(x, y, z));
     }
 
-    pub fn remove(&mut self, x: uint, y: uint, z: uint) {
+    pub fn remove(&mut self, x: int, y: int, z: int) {
         self.set.remove(&BlockBitmap::index(x, y, z));
     }
 
-    fn index(x: uint, y: uint, z: uint) -> uint {
-        x*CHUNK_SIZE*CHUNK_SIZE + y*CHUNK_SIZE + z
+    fn index(x: int, y: int, z: int) -> uint {
+        (x*CHUNK_SIZE*CHUNK_SIZE + y*CHUNK_SIZE + z) as uint
     }
 }
 

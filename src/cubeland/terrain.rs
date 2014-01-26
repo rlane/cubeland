@@ -48,7 +48,7 @@ impl Block {
 }
 
 pub struct Terrain {
-    blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
+    priv blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
 }
 
 impl Terrain {
@@ -145,7 +145,7 @@ impl Terrain {
         return t;
     }
 
-    pub fn index<'a>(&'a self, x: int, y: int, z: int) -> Option<&'a Block> {
+    pub fn get<'a>(&'a self, x: int, y: int, z: int) -> Option<&'a Block> {
         if x < 0 || x >= CHUNK_SIZE as int || y < 0 || y >= CHUNK_SIZE as int || z < 0 || z >= CHUNK_SIZE as int {
             None
         } else {

@@ -52,7 +52,7 @@ mod terrain;
 mod mesh;
 
 pub static VISIBLE_RADIUS: uint = 12;
-pub static CHUNK_SIZE: uint = 32;
+pub static CHUNK_SIZE: int = 32;
 pub static WORLD_SEED: u32 = 42;
 
 static DEFAULT_WINDOW_SIZE : Vec2<u32> = Vec2 { x: 800, y: 600 };
