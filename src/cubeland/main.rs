@@ -197,12 +197,12 @@ fn main() {
     }
 }
 
-fn nearby_chunk_coords(p: Vec3<f64>) -> ~[Vec2<i64>] {
+fn nearby_chunk_coords(p: Vec3<f64>) -> ~[Vec3<i64>] {
     static num_chunks : uint = (VISIBLE_RADIUS * 2 + 1) * (VISIBLE_RADIUS * 2 + 1);
-    let cur_chunk_coord = Vec2::new(p.x as i64, p.y as i64).div_s(CHUNK_SIZE as i64);
+    let cur_chunk_coord = Vec3::new(p.x as i64, 0, p.z as i64).div_s(CHUNK_SIZE as i64);
 
-    let chunk_coord = |v: Vec2<i64>| -> Vec2<i64> {
-        cur_chunk_coord.add_v(&v)
+    let chunk_coord = |v: Vec2<i64>| -> Vec3<i64> {
+        cur_chunk_coord.add_v(&Vec3::new(v.x, 0, v.y))
     };
 
     Spiral::<i64>::new(num_chunks).map(chunk_coord).to_owned_vec()

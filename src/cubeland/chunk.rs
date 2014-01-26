@@ -29,7 +29,6 @@ use extra::bitv::BitvSet;
 use gl::types::*;
 
 use cgmath::vector::Vector;
-use cgmath::vector::Vec2;
 use cgmath::vector::Vec3;
 
 use noise::Perlin;
@@ -58,8 +57,8 @@ pub struct VertexData {
 
 pub struct ChunkLoader {
     seed : u32,
-    cache : HashMap<Vec2<i64>, ~Chunk>,
-    needed_chunks : ~[Vec2<i64>],
+    cache : HashMap<Vec3<i64>, ~Chunk>,
+    needed_chunks : ~[Vec3<i64>],
 }
 
 impl ChunkLoader {
@@ -71,11 +70,11 @@ impl ChunkLoader {
         }
     }
 
-    pub fn get<'a>(&'a self, c: Vec2<i64>) -> Option<&'a ~Chunk> {
+    pub fn get<'a>(&'a self, c: Vec3<i64>) -> Option<&'a ~Chunk> {
         self.cache.find(&c)
     }
 
-    pub fn request(&mut self, c: Vec2<i64>) {
+    pub fn request(&mut self, c: Vec3<i64>) {
         match self.cache.find_mut(&c) {
             Some(chunk) => {
                 chunk.touch();
@@ -106,7 +105,7 @@ impl ChunkLoader {
 }
 
 pub struct Chunk {
-    coord: Vec2<i64>,
+    coord: Vec3<i64>,
     map: ~Map,
     mesh: ~Mesh,
     used_time: u64,
@@ -166,13 +165,13 @@ pub struct Face {
     vertices: [Vec3<f32>, ..4],
 }
 
-pub fn chunk_gen(seed: u32, coord: Vec2<i64>) -> ~Chunk {
+pub fn chunk_gen(seed: u32, coord: Vec3<i64>) -> ~Chunk {
     let def_block = Block { blocktype: BlockAir };
     let mut map = ~Map {
         blocks: [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
     };
 
-    let p = Vec2::new(coord.x as f64, coord.y as f64).mul_s(CHUNK_SIZE as f64);
+    let p = Vec3::new(coord.x as f64, coord.y as f64, coord.z as f64).mul_s(CHUNK_SIZE as f64);
 
     terrain_gen(seed, p, map);
 
@@ -197,7 +196,7 @@ fn block_exists(map: &Map, x: int, y: int, z: int) -> bool {
     }
 }
 
-fn terrain_gen(seed: u32, p: Vec2<f64>, map: &mut Map) {
+fn terrain_gen(seed: u32, p: Vec3<f64>, map: &mut Map) {
     let start_time = precise_time_ns();
 
     let perlin1 = Perlin::from_seed([seed as uint]);
@@ -209,19 +208,19 @@ fn terrain_gen(seed: u32, p: Vec2<f64>, map: &mut Map) {
         for block_z in std::iter::range(0, CHUNK_SIZE) {
             let noise1 = perlin1.gen([
                 (p.x + block_x as f64) * 0.07,
-                (p.y + block_z as f64) * 0.04
+                (p.z + block_z as f64) * 0.04
             ]);
             let noise2 = perlin2.gen([
                 (p.x + block_x as f64) * 0.05,
-                (p.y + block_z as f64) * 0.05
+                (p.z + block_z as f64) * 0.05
             ]);
             let noise3 = perlin3.gen([
                 (p.x + block_x as f64) * 0.005,
-                (p.y + block_z as f64) * 0.005
+                (p.z + block_z as f64) * 0.005
             ]);
             let noise4 = perlin4.gen([
                 (p.x + block_x as f64) * 0.001,
-                (p.y + block_z as f64) * 0.001
+                (p.z + block_z as f64) * 0.001
             ]);
 
             let base_height = 15.0;

@@ -137,11 +137,15 @@ impl Renderer {
 
         let clip_transform = projection.mul_m(&camera);
 
-        let camera_chunk_coord = Vec2::new(camera_position.x as i64, camera_position.z as i64).
+        let camera_chunk_coord = Vec3::new(camera_position.x as i64,
+                                           camera_position.y as i64,
+                                           camera_position.z as i64).
                                        div_s(CHUNK_SIZE as i64);
 
         for chunk in chunks.iter() {
-            let mut chunk_pos = Vec3::new(chunk.coord.x as f32, 0.0f32, chunk.coord.y as f32).
+            let mut chunk_pos = Vec3::new(chunk.coord.x as f32,
+                                          chunk.coord.y as f32,
+                                          chunk.coord.z as f32).
                                       mul_s(CHUNK_SIZE as f32);
 
             /* Calculate drop due to surface curvature */
@@ -350,16 +354,16 @@ fn view_frustum_cull(m : &Mat4<f32>, p: &Vec4<f32>) -> bool {
     return false;
 }
 
-fn face_visible(face : &chunk::Face, a: Vec2<i64>, b: Vec2<i64>) -> bool {
+fn face_visible(face : &chunk::Face, a: Vec3<i64>, b: Vec3<i64>) -> bool {
     let dp = b.sub_v(&a);
 
     match face.index {
-        0 => dp.y >= 0,
-        1 => dp.y <= 1,
+        0 => dp.z >= 0,
+        1 => dp.z <= 1,
         2 => dp.x >= 0,
         3 => dp.x <= 1,
-        4 => true,
-        5 => true,
+        4 => dp.y >= 0,
+        5 => dp.y <= 1,
         _ => unreachable!()
     }
 }
