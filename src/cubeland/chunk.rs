@@ -33,19 +33,10 @@ use cgmath::vector::Vec3;
 use CHUNK_SIZE;
 use VISIBLE_RADIUS;
 use terrain::Terrain;
+use terrain::BlockAir;
 
 static NUM_FACES : uint = 6;
 static MAX_CHUNKS : uint = (VISIBLE_RADIUS*2)*(VISIBLE_RADIUS*2)*2;
-
-#[repr(u8)]
-#[deriving(Eq)]
-pub enum BlockType {
-    BlockAir = 0,
-    BlockGrass = 1,
-    BlockStone = 2,
-    BlockDirt = 3,
-    BlockWater = 4,
-}
 
 // Layout of the vertex buffer sent to the GPU
 pub struct VertexData {
@@ -112,16 +103,6 @@ pub struct Chunk {
 impl Chunk {
     pub fn touch(&mut self) {
         self.used_time = extra::time::precise_time_ns();
-    }
-}
-
-pub struct Block {
-    blocktype: BlockType,
-}
-
-impl Block {
-    pub fn is_opaque(&self) -> bool {
-        self.blocktype != BlockAir
     }
 }
 

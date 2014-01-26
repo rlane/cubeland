@@ -26,8 +26,26 @@ use cgmath::vector::Vec3;
 use noise::Perlin;
 
 use CHUNK_SIZE;
-use chunk::Block;
-use chunk::{BlockAir,BlockDirt,BlockStone,BlockWater,BlockGrass};
+
+#[repr(u8)]
+#[deriving(Eq)]
+pub enum BlockType {
+    BlockAir = 0,
+    BlockGrass = 1,
+    BlockStone = 2,
+    BlockDirt = 3,
+    BlockWater = 4,
+}
+
+pub struct Block {
+    blocktype: BlockType,
+}
+
+impl Block {
+    pub fn is_opaque(&self) -> bool {
+        self.blocktype != BlockAir
+    }
+}
 
 pub struct Terrain {
     blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
