@@ -40,7 +40,8 @@ use cgmath::ptr::Ptr;
 
 use check_gl;
 use chunk;
-use chunk::Mesh;
+use mesh;
+use mesh::Mesh;
 use chunk::Chunk;
 use CHUNK_SIZE;
 use texture;
@@ -167,7 +168,7 @@ impl Renderer {
                 gl::Uniform3fv(self.res.uniform_chunk_position, 1, chunk_pos.ptr());
             }
 
-            for face in chunk::faces.iter() {
+            for face in mesh::faces.iter() {
                 if !face_visible(face, chunk.coord, camera_chunk_coord) {
                     continue;
                 }
@@ -222,12 +223,12 @@ impl Renderer {
             gl::BindBuffer(gl::ARRAY_BUFFER, mesh.vertex_buffer);
             gl::VertexAttribPointer(self.res.attr_position, 3, gl::FLOAT,
                                     gl::FALSE as GLboolean,
-                                    std::mem::size_of::<chunk::VertexData>() as GLint,
+                                    std::mem::size_of::<mesh::VertexData>() as GLint,
                                     ptr::null());
             gl::VertexAttribPointer(self.res.attr_blocktype, 1, gl::FLOAT,
                                     gl::FALSE as GLboolean,
-                                    std::mem::size_of::<chunk::VertexData>() as GLint,
-                                    std::cast::transmute(offset_of!(chunk::VertexData, blocktype)));
+                                    std::mem::size_of::<mesh::VertexData>() as GLint,
+                                    std::cast::transmute(offset_of!(mesh::VertexData, blocktype)));
 
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, mesh.element_buffer);
         }
@@ -354,7 +355,7 @@ fn view_frustum_cull(m : &Mat4<f32>, p: &Vec4<f32>) -> bool {
     return false;
 }
 
-fn face_visible(face : &chunk::Face, a: Vec3<i64>, b: Vec3<i64>) -> bool {
+fn face_visible(face : &mesh::Face, a: Vec3<i64>, b: Vec3<i64>) -> bool {
     let dp = b.sub_v(&a);
 
     match face.index {
