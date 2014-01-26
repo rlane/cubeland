@@ -97,6 +97,25 @@ impl Terrain {
                 for y in range(height, water_height) {
                     t.blocks[block_x][y][block_z] = Block { blocktype: BlockWater };
                 }
+
+                for block_y in std::iter::range(0, CHUNK_SIZE) {
+                    let block = &mut t.blocks[block_x][block_y][block_z];
+
+                    if (p.y + block_y as f64) <= 1.0 ||
+                       block.blocktype == BlockAir {
+                        continue;
+                    }
+
+                    let cave = perlin1.gen([
+                        (p.x + block_x as f64) * 0.05,
+                        (p.y + block_y as f64) * 0.1,
+                        (p.z + block_z as f64) * 0.05]);
+
+                    if cave > 0.5 {
+                        block.blocktype = BlockAir;
+                    }
+                }
+
             }
         }
 
