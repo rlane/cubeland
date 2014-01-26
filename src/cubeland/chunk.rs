@@ -91,7 +91,7 @@ impl ChunkLoader {
         }
 
         let coord = self.needed_chunks.shift();
-        println!("loading chunk ({}, {})", coord.x, coord.y);
+        println!("loading chunk ({}, {}, {})", coord.x, coord.y, coord.z);
         let chunk = chunk_gen(self.seed, coord);
         self.cache.insert(coord, chunk);
 
