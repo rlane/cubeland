@@ -46,7 +46,7 @@ pub struct VertexData {
 
 pub struct ChunkLoader {
     seed : u32,
-    cache : HashMap<Vec3<i64>, ~Chunk>,
+    cache : HashMap<(i64, i64, i64), ~Chunk>,
     needed_chunks : ~[Vec3<i64>],
 }
 
@@ -60,11 +60,11 @@ impl ChunkLoader {
     }
 
     pub fn get<'a>(&'a self, c: Vec3<i64>) -> Option<&'a ~Chunk> {
-        self.cache.find(&c)
+        self.cache.find(&(c.x, c.y, c.z))
     }
 
     pub fn request(&mut self, c: Vec3<i64>) {
-        match self.cache.find_mut(&c) {
+        match self.cache.find_mut(&(c.x, c.y, c.z)) {
             Some(chunk) => {
                 chunk.touch();
             }
@@ -84,7 +84,7 @@ impl ChunkLoader {
         let coord = self.needed_chunks.shift();
         println!("loading chunk ({}, {}, {})", coord.x, coord.y, coord.z);
         let chunk = chunk_gen(self.seed, coord);
-        self.cache.insert(coord, chunk);
+        self.cache.insert((coord.x, coord.y, coord.z), chunk);
 
         while self.cache.len() > MAX_CHUNKS {
             let (&k, _) = self.cache.iter().min_by(|&(_, chunk)| chunk.used_time).unwrap();
