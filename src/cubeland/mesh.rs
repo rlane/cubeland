@@ -81,10 +81,12 @@ impl Mesh {
                             continue;
                         }
 
-                        if block_exists(t,
-                                        x as int + face_normal_int.x,
-                                        y as int + face_normal_int.y,
-                                        z as int + face_normal_int.z) {
+                        let neighbor = t.get(
+                            x + face_normal_int.x,
+                            y + face_normal_int.y,
+                            z + face_normal_int.z).unwrap();
+
+                        if neighbor.is_opaque() {
                             continue;
                         }
 
@@ -181,17 +183,6 @@ impl Drop for Mesh {
             gl::DeleteBuffers(1, &self.vertex_buffer);
             gl::DeleteBuffers(1, &self.element_buffer);
         }
-    }
-}
-
-fn block_exists(t: &Terrain, x: int, y: int, z: int) -> bool {
-    if y < 0 {
-        return true;
-    }
-
-    match t.get(x, y, z) {
-        Some(block) => block.is_opaque(),
-        None => false
     }
 }
 
