@@ -96,7 +96,7 @@ impl Terrain {
                     ) as int,
                     1, CHUNK_SIZE - 1);
 
-                for y in range(0, height) {
+                for y in range(-1, height) {
                     let block = t.get_mut(block_x, y, block_z);
 
                     let dirt_height = (4.0 + noise2 * 8.0) as int;
@@ -117,7 +117,7 @@ impl Terrain {
                     block.blocktype = BlockWater;
                 }
 
-                for block_y in std::iter::range(0, CHUNK_SIZE) {
+                for block_y in std::iter::range(-1, CHUNK_SIZE+1) {
                     let block = t.get_mut(block_x, block_y, block_z);
 
                     if (p.y + block_y as f64) <= 1.0 ||
