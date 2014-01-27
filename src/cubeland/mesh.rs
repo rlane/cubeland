@@ -75,7 +75,7 @@ impl Mesh {
             for x in std::iter::range(0, CHUNK_SIZE as int) {
                 for y in std::iter::range(0, CHUNK_SIZE as int) {
                     for z in std::iter::range(0, CHUNK_SIZE as int) {
-                        let block = &t.get(x, y, z).unwrap();
+                        let block = &t.get(x, y, z);
 
                         if (block.blocktype == BlockAir) {
                             continue;
@@ -84,7 +84,7 @@ impl Mesh {
                         let neighbor = t.get(
                             x + face_normal_int.x,
                             y + face_normal_int.y,
-                            z + face_normal_int.z).unwrap();
+                            z + face_normal_int.z);
 
                         if neighbor.is_opaque() {
                             continue;
@@ -99,7 +99,7 @@ impl Mesh {
                 for j in std::iter::range(0, CHUNK_SIZE as int) {
                     for k in std::iter::range(0, CHUNK_SIZE as int) {
                         let Vec3 { x: x, y: y, z: z } = face.di.mul_s(i).add_v(&face.dj.mul_s(j)).add_v(&face.dk.mul_s(k));
-                        let block = &t.get(x, y, z).unwrap();
+                        let block = &t.get(x, y, z);
 
                         if !unmeshed_faces.contains(x, y, z) {
                             continue;
@@ -205,7 +205,7 @@ fn run_length(t : &Terrain,
               unmeshed_faces : &BlockBitmap,
               mut p: Vec3<int>,
               dp: Vec3<int>) -> int {
-    let block = &t.get(p.x, p.y, p.z).unwrap();
+    let block = &t.get(p.x, p.y, p.z);
     let max_len = Vec3::new(CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE).sub_v(&p).dot(&dp);
 
     let mut len = 1;
@@ -214,7 +214,7 @@ fn run_length(t : &Terrain,
         p.add_self_v(&dp);
 
         if unmeshed_faces.contains(p.x, p.y, p.z) {
-            let b = t.get(p.x, p.y, p.z).unwrap();
+            let b = t.get(p.x, p.y, p.z);
             if b.blocktype == block.blocktype {
                 len += 1;
             } else {

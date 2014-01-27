@@ -146,12 +146,8 @@ impl Terrain {
         return t;
     }
 
-    pub fn get<'a>(&'a self, x: int, y: int, z: int) -> Option<&'a Block> {
-        if x < -1 || x >= CHUNK_SIZE+1 || y < -1 || y >= CHUNK_SIZE+1 || z < -1 || z >= CHUNK_SIZE+1 {
-            None
-        } else {
-            Some(&self.blocks[x+1][y+1][z+1])
-        }
+    pub fn get<'a>(&'a self, x: int, y: int, z: int) -> &'a Block {
+        &self.blocks[x+1][y+1][z+1]
     }
 
     pub fn get_mut<'a>(&'a mut self, x: int, y: int, z: int) -> &'a mut Block {
