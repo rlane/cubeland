@@ -17,6 +17,7 @@ extern mod cgmath;
 
 use std::hashmap::HashMap;
 use std::hashmap::HashSet;
+use std::rt::default_sched_threads;
 
 use extra::comm::DuplexStream;
 use extra::time::precise_time_ns;
@@ -39,13 +40,32 @@ pub struct ChunkLoader {
     cache : HashMap<(i64, i64, i64), ~Chunk>,
     needed_chunks : ~[Vec3<i64>],
     inflight: HashSet<(i64, i64, i64)>,
-    stream: DuplexStream<Vec3<i64>, ~Chunk>,
+    streams: ~[DuplexStream<Vec3<i64>, ~Chunk>],
     load_rate_display_limiter: RateLimiter,
     load_rate_counter: uint,
 }
 
 impl ChunkLoader {
     pub fn new(seed : u32) -> ChunkLoader {
+        let streams =
+            range(0, default_sched_threads()).
+            map(|_| ChunkLoader::spawn_worker(seed)).
+            to_owned_vec();
+
+        println!("spawned {} workers", streams.len());
+
+        ChunkLoader {
+            seed: seed,
+            cache: HashMap::new(),
+            needed_chunks: ~[],
+            inflight: HashSet::new(),
+            streams: streams,
+            load_rate_display_limiter: RateLimiter::new(1000*1000*1000),
+            load_rate_counter: 0,
+        }
+    }
+
+    fn spawn_worker(seed : u32) -> DuplexStream<Vec3<i64>, ~Chunk> {
         let (loader_stream, worker_stream) = DuplexStream::new();
 
         do spawn {
@@ -56,16 +76,7 @@ impl ChunkLoader {
             }
         }
 
-        ChunkLoader {
-            seed: seed,
-            cache: HashMap::new(),
-            needed_chunks: ~[],
-            inflight: HashSet::new(),
-            stream: loader_stream,
-            load_rate_display_limiter: RateLimiter::new(1000*1000*1000),
-            load_rate_counter: 0,
-
-        }
+        loader_stream
     }
 
     pub fn get<'a>(&'a self, c: Vec3<i64>) -> Option<&'a ~Chunk> {
@@ -92,17 +103,19 @@ impl ChunkLoader {
     }
 
     pub fn work(&mut self) {
-        loop {
-            match self.stream.try_recv() {
-                Some(mut chunk) => {
-                    let c = chunk.coord;
-                    chunk.touch();
-                    chunk.mesh.finish();
-                    self.cache.insert((c.x, c.y, c.z), chunk);
-                    self.inflight.remove(&(c.x, c.y, c.z));
-                    self.load_rate_counter += 1;
-                },
-                None => break,
+        for stream in self.streams.iter() {
+            loop {
+                match stream.try_recv() {
+                    Some(mut chunk) => {
+                        let c = chunk.coord;
+                        chunk.touch();
+                        chunk.mesh.finish();
+                        self.cache.insert((c.x, c.y, c.z), chunk);
+                        self.inflight.remove(&(c.x, c.y, c.z));
+                        self.load_rate_counter += 1;
+                    },
+                    None => break,
+                }
             }
         }
 
@@ -114,7 +127,8 @@ impl ChunkLoader {
         while self.inflight.len() < MAX_INFLIGHT && !self.needed_chunks.is_empty() {
             let c = self.needed_chunks.shift();
             self.inflight.insert((c.x, c.y, c.z));
-            self.stream.send(c);
+            let worker_index = (c.x, c.y, c.z).hash() as uint % self.streams.len();
+            self.streams[worker_index].send(c);
         }
 
         if self.load_rate_counter > 0 && self.load_rate_display_limiter.limit() {
