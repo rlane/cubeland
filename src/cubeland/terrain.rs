@@ -94,30 +94,31 @@ impl Terrain {
                             std::num::pow(noise3 + 1.0, 2.5) *
                             noise1
                     ) as int,
-                    1, CHUNK_SIZE as int - 1) as uint;
+                    1, CHUNK_SIZE - 1);
 
                 for y in range(0, height) {
-                    let mut blocktype = BlockStone;
+                    let block = t.get_mut(block_x, y, block_z);
 
-                    let dirt_height = (4.0 + noise2 * 8.0) as uint;
+                    let dirt_height = (4.0 + noise2 * 8.0) as int;
                     if (height <= 20) && (y + dirt_height >= height) {
                         if y < height - 2 {
-                            blocktype = BlockDirt;
+                            block.blocktype = BlockDirt;
                         } else {
-                            blocktype = BlockGrass;
+                            block.blocktype = BlockGrass;
                         }
+                    } else {
+                        block.blocktype = BlockStone;
                     }
-
-                    t.blocks[block_x][y][block_z] = Block { blocktype: blocktype };
                 }
 
                 let water_height = 10;
                 for y in range(height, water_height) {
-                    t.blocks[block_x][y][block_z] = Block { blocktype: BlockWater };
+                    let block = t.get_mut(block_x, y, block_z);
+                    block.blocktype = BlockWater;
                 }
 
                 for block_y in std::iter::range(0, CHUNK_SIZE) {
-                    let block = &mut t.blocks[block_x][block_y][block_z];
+                    let block = t.get_mut(block_x, block_y, block_z);
 
                     if (p.y + block_y as f64) <= 1.0 ||
                        block.blocktype == BlockAir {
@@ -146,10 +147,15 @@ impl Terrain {
     }
 
     pub fn get<'a>(&'a self, x: int, y: int, z: int) -> Option<&'a Block> {
-        if x < 0 || x >= CHUNK_SIZE as int || y < 0 || y >= CHUNK_SIZE as int || z < 0 || z >= CHUNK_SIZE as int {
+        if x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_SIZE || z < 0 || z >= CHUNK_SIZE {
             None
         } else {
             Some(&self.blocks[x][y][z])
         }
     }
+
+    pub fn get_mut<'a>(&'a mut self, x: int, y: int, z: int) -> &'a mut Block {
+        &mut self.blocks[x][y][z]
+    }
+
 }
