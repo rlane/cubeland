@@ -26,6 +26,7 @@ use cgmath::vector::Vec3;
 use noise::Perlin;
 
 use CHUNK_SIZE;
+use WORLD_HEIGHT;
 
 #[repr(u8)]
 #[deriving(Eq)]
@@ -58,6 +59,10 @@ impl Terrain {
             blocks: [[[def_block, ..CHUNK_SIZE+2], ..CHUNK_SIZE+2], ..CHUNK_SIZE+2],
         };
 
+        let water_height = 52.0;
+        let base_height = 64.0;
+        let base_variance = 10.0;
+
         let start_time = precise_time_ns();
 
         let perlin1 = Perlin::from_seed([seed as uint]);
@@ -84,8 +89,6 @@ impl Terrain {
                     (p.z + block_z as f64) * 0.001
                 ]);
 
-                let base_height = 15.0;
-                let base_variance = 10.0;
                 let height = clamp(
                     (
                         base_height +
@@ -93,48 +96,47 @@ impl Terrain {
                         base_variance *
                             std::num::pow(noise3 + 1.0, 2.5) *
                             noise1
-                    ) as int,
-                    1, CHUNK_SIZE - 1);
+                    ),
+                    1.0, (CHUNK_SIZE * (WORLD_HEIGHT as int) - 1) as f64);
 
-                for y in range(-1, height) {
-                    let block = t.get_mut(block_x, y, block_z);
+                let dirt_height = 4.0 + noise2 * 8.0;
 
-                    let dirt_height = (4.0 + noise2 * 8.0) as int;
-                    if (height <= 20) && (y + dirt_height >= height) {
-                        if y < height - 2 {
-                            block.blocktype = BlockDirt;
+                for block_y in range(-1, CHUNK_SIZE+1) {
+                    let mut blocktype = BlockAir;
+                    let v = p.add_v(&Vec3::new(block_x as f64, block_y as f64, block_z as f64));
+
+                    if v.y < height {
+                        if v.y > height - dirt_height {
+                            if v.y > height - 2.0 {
+                                blocktype = BlockGrass;
+                            } else {
+                                blocktype = BlockDirt;
+                            }
                         } else {
-                            block.blocktype = BlockGrass;
+                            blocktype = BlockStone;
                         }
-                    } else {
-                        block.blocktype = BlockStone;
-                    }
-                }
-
-                let water_height = 10;
-                for y in range(height, water_height) {
-                    let block = t.get_mut(block_x, y, block_z);
-                    block.blocktype = BlockWater;
-                }
-
-                for block_y in std::iter::range(-1, CHUNK_SIZE+1) {
-                    let block = t.get_mut(block_x, block_y, block_z);
-
-                    if (p.y + block_y as f64) <= 1.0 ||
-                       block.blocktype == BlockAir {
-                        continue;
                     }
 
-                    let cave = perlin1.gen([
-                        (p.x + block_x as f64) * 0.05,
-                        (p.y + block_y as f64) * 0.1,
-                        (p.z + block_z as f64) * 0.05]);
+                    if blocktype == BlockAir && v.y < water_height {
+                        blocktype = BlockWater;
+                    }
 
-                    if cave > 0.5 {
-                        block.blocktype = BlockAir;
+                    if blocktype != BlockAir && blocktype != BlockWater {
+                        let cave = perlin1.gen([
+                            (p.x + block_x as f64) * 0.05,
+                            (p.y + block_y as f64) * 0.1,
+                            (p.z + block_z as f64) * 0.05]);
+
+                        if cave > 0.5 {
+                            blocktype = BlockAir;
+                        }
+                    }
+
+                    if blocktype != BlockAir {
+                        let block = t.get_mut(block_x, block_y, block_z);
+                        block.blocktype = blocktype;
                     }
                 }
-
             }
         }
 
