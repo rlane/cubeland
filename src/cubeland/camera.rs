@@ -23,11 +23,13 @@ use cgmath::vector::Vec2;
 use cgmath::vector::Vec3;
 
 static CAMERA_SPEED : f64 = 30.0;
+static FAST_MULTIPLIER : f64 = 10.0;
 
 pub struct Camera {
     position : Vec3<f64>,
     velocity : Vec3<f64>,
     angle : Vec2<f64>,
+    fast : bool,
 }
 
 impl Camera {
@@ -36,11 +38,16 @@ impl Camera {
             position: position,
             velocity: Vec3::zero(),
             angle: Vec2::zero(),
+            fast: false,
         }
     }
 
     pub fn accelerate(&mut self, acceleration: Vec3<f64>) {
         self.velocity.add_self_v(&acceleration);
+    }
+
+    pub fn fast(&mut self, fast: bool) {
+        self.fast = fast;
     }
 
     pub fn look(&mut self, cursor: Vec2<f64>) {
@@ -49,8 +56,13 @@ impl Camera {
     }
 
     pub fn tick(&mut self, tick_length: f64) {
+        let mut speed = CAMERA_SPEED;
+        if self.fast {
+            speed *= FAST_MULTIPLIER;
+        }
+
         let inv_camera_rotation = Mat3::<f64>::from_euler(rad(-self.angle.x), rad(-self.angle.y), rad(0.0));
-        let absolute_camera_velocity = inv_camera_rotation.mul_v(&self.velocity).mul_s(CAMERA_SPEED).mul_s(tick_length);
+        let absolute_camera_velocity = inv_camera_rotation.mul_v(&self.velocity).mul_s(speed).mul_s(tick_length);
         self.position.add_self_v(&absolute_camera_velocity);
     }
 }

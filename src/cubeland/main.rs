@@ -155,6 +155,8 @@ fn main() {
                     Some((glfw::Release, glfw::KeyLeftControl)) => {
                         camera.accelerate(Vec3::new(0.0, 1.0, 0.0));
                     },
+                    Some((glfw::Press, glfw::KeyLeftShift)) => camera.fast(true),
+                    Some((glfw::Release, glfw::KeyLeftShift)) => camera.fast(false),
 
                     Some((glfw::Press, glfw::KeyR)) => {
                         renderer.reload_resources();
