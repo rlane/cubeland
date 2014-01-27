@@ -107,13 +107,12 @@ fn main() {
         // Preload chunks
         {
             let deadline = precise_time_ns() + 1000*1000*100;
-            let mut count = 0;
             request_nearby_chunks(&mut chunk_loader, camera.position);
             while precise_time_ns() < deadline {
                 chunk_loader.work();
-                count += 1;
+                std::task::deschedule();
             }
-            println!("Preloaded {} chunks", count);
+            println!("Preloaded {} chunks", chunk_loader.cache.len());
         }
 
         while !window.should_close() {

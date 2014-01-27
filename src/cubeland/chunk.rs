@@ -16,7 +16,9 @@ extern mod extra;
 extern mod cgmath;
 
 use std::hashmap::HashMap;
+use std::hashmap::HashSet;
 
+use extra::comm::DuplexStream;
 use extra::time::precise_time_ns;
 
 use cgmath::vector::Vector;
@@ -27,21 +29,42 @@ use VISIBLE_RADIUS;
 use WORLD_HEIGHT;
 use terrain::Terrain;
 use mesh::Mesh;
+use ratelimiter::RateLimiter;
 
 static MAX_CHUNKS : uint = (VISIBLE_RADIUS*2)*(VISIBLE_RADIUS*2)*WORLD_HEIGHT*2;
+static MAX_INFLIGHT : uint = 32;
 
 pub struct ChunkLoader {
     seed : u32,
     cache : HashMap<(i64, i64, i64), ~Chunk>,
     needed_chunks : ~[Vec3<i64>],
+    inflight: HashSet<(i64, i64, i64)>,
+    stream: DuplexStream<Vec3<i64>, ~Chunk>,
+    load_rate_display_limiter: RateLimiter,
+    load_rate_counter: uint,
 }
 
 impl ChunkLoader {
     pub fn new(seed : u32) -> ChunkLoader {
+        let (loader_stream, worker_stream) = DuplexStream::new();
+
+        do spawn {
+            loop {
+                let coord : Vec3<i64> = worker_stream.recv();
+                println!("loading chunk ({}, {}, {})", coord.x, coord.y, coord.z);
+                worker_stream.send(chunk_gen(seed, coord));
+            }
+        }
+
         ChunkLoader {
             seed: seed,
             cache: HashMap::new(),
             needed_chunks: ~[],
+            inflight: HashSet::new(),
+            stream: loader_stream,
+            load_rate_display_limiter: RateLimiter::new(1000*1000*1000),
+            load_rate_counter: 0,
+
         }
     }
 
@@ -53,6 +76,10 @@ impl ChunkLoader {
         self.needed_chunks.clear();
 
         for &c in coords.iter() {
+            if self.inflight.contains(&(c.x, c.y, c.z)) {
+                continue;
+            }
+
             match self.cache.find_mut(&(c.x, c.y, c.z)) {
                 Some(chunk) => {
                     chunk.touch();
@@ -65,18 +92,34 @@ impl ChunkLoader {
     }
 
     pub fn work(&mut self) {
-        if self.needed_chunks.is_empty() {
-            return;
+        loop {
+            match self.stream.try_recv() {
+                Some(mut chunk) => {
+                    let c = chunk.coord;
+                    chunk.touch();
+                    chunk.mesh.finish();
+                    self.cache.insert((c.x, c.y, c.z), chunk);
+                    self.inflight.remove(&(c.x, c.y, c.z));
+                    self.load_rate_counter += 1;
+                },
+                None => break,
+            }
         }
-
-        let coord = self.needed_chunks.shift();
-        println!("loading chunk ({}, {}, {})", coord.x, coord.y, coord.z);
-        let chunk = chunk_gen(self.seed, coord);
-        self.cache.insert((coord.x, coord.y, coord.z), chunk);
 
         while self.cache.len() > MAX_CHUNKS {
             let (&k, _) = self.cache.iter().min_by(|&(_, chunk)| chunk.used_time).unwrap();
             self.cache.remove(&k);
+        }
+
+        while self.inflight.len() < MAX_INFLIGHT && !self.needed_chunks.is_empty() {
+            let c = self.needed_chunks.shift();
+            self.inflight.insert((c.x, c.y, c.z));
+            self.stream.send(c);
+        }
+
+        if self.load_rate_counter > 0 && self.load_rate_display_limiter.limit() {
+            println!("loaded {} chunks over the last second", self.load_rate_counter);
+            self.load_rate_counter = 0;
         }
     }
 }

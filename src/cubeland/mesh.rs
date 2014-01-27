@@ -49,6 +49,8 @@ pub struct Face {
 pub struct Mesh {
     vertex_buffer: GLuint,
     element_buffer: GLuint,
+    vertices: ~[VertexData],
+    elements: ~[GLuint],
     face_ranges: [(uint, uint), ..NUM_FACES],
 }
 
@@ -140,29 +142,6 @@ impl Mesh {
             face_ranges[face.index] = (num_elements_start, elements.len() - num_elements_start);
         }
 
-        let mut vertex_buffer = 0;
-        let mut element_buffer = 0;
-
-        if !elements.is_empty() {
-            unsafe {
-                // Create a Vertex Buffer Object and copy the vertex data to it
-                gl::GenBuffers(1, &mut vertex_buffer);
-                gl::BindBuffer(gl::ARRAY_BUFFER, vertex_buffer);
-                gl::BufferData(gl::ARRAY_BUFFER,
-                            (vertices.len() * std::mem::size_of::<VertexData>()) as GLsizeiptr,
-                            cast::transmute(&vertices[0]),
-                            gl::STATIC_DRAW);
-
-                // Create a Vertex Buffer Object and copy the element data to it
-                gl::GenBuffers(1, &mut element_buffer);
-                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, element_buffer);
-                gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
-                            (elements.len() * std::mem::size_of::<GLuint>()) as GLsizeiptr,
-                            cast::transmute(&elements[0]),
-                            gl::STATIC_DRAW);
-            }
-        }
-
         let end_time = precise_time_ns();
 
         println!("mesh gen : {}us; vertices={}; elements={}",
@@ -170,10 +149,37 @@ impl Mesh {
                 vertices.len(), elements.len())
 
         ~Mesh {
-            vertex_buffer: vertex_buffer,
-            element_buffer: element_buffer,
+            vertex_buffer: 0,
+            element_buffer: 0,
+            vertices: vertices,
+            elements: elements,
             face_ranges: face_ranges,
         }
+    }
+
+    pub fn finish(&mut self) {
+        if !self.elements.is_empty() {
+            unsafe {
+                // Create a Vertex Buffer Object and copy the vertex data to it
+                gl::GenBuffers(1, &mut self.vertex_buffer);
+                gl::BindBuffer(gl::ARRAY_BUFFER, self.vertex_buffer);
+                gl::BufferData(gl::ARRAY_BUFFER,
+                            (self.vertices.len() * std::mem::size_of::<VertexData>()) as GLsizeiptr,
+                            cast::transmute(&self.vertices[0]),
+                            gl::STATIC_DRAW);
+
+                // Create a Vertex Buffer Object and copy the element data to it
+                gl::GenBuffers(1, &mut self.element_buffer);
+                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.element_buffer);
+                gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
+                            (self.elements.len() * std::mem::size_of::<GLuint>()) as GLsizeiptr,
+                            cast::transmute(&self.elements[0]),
+                            gl::STATIC_DRAW);
+            }
+        }
+
+        self.vertices.clear();
+        self.elements.clear();
     }
 }
 
