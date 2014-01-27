@@ -221,6 +221,10 @@ fn nearby_chunk_coords(p: Vec3<f64>) -> ~[Vec3<i64>] {
     let mut coords = ~[];
 
     for v in Spiral::<i64>::new(num_chunks) {
+        if v.x*v.x + v.y*v.y > (VISIBLE_RADIUS*VISIBLE_RADIUS) as i64 {
+            continue;
+        }
+
         let mut c = cur_chunk_coord.add_v(&Vec3::new(v.x, 0, v.y));
         for y in range(0, WORLD_HEIGHT) {
             c.y = y as i64;
