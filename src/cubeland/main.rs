@@ -240,9 +240,7 @@ fn find_nearby_chunks<'a>(chunk_loader: &'a ChunkLoader, p: Vec3<f64>) -> ~[&'a 
 
 fn request_nearby_chunks(chunk_loader: &mut ChunkLoader, p: Vec3<f64>) {
     let coords = nearby_chunk_coords(p);
-    for &c in coords.iter() {
-        chunk_loader.request(c);
-    }
+    chunk_loader.request(coords);
 }
 
 extern "C" {

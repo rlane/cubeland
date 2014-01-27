@@ -49,13 +49,15 @@ impl ChunkLoader {
         self.cache.find(&(c.x, c.y, c.z))
     }
 
-    pub fn request(&mut self, c: Vec3<i64>) {
-        match self.cache.find_mut(&(c.x, c.y, c.z)) {
-            Some(chunk) => {
-                chunk.touch();
-            }
-            None => {
-                if !self.needed_chunks.contains(&c) {
+    pub fn request(&mut self, coords: &[Vec3<i64>]) {
+        self.needed_chunks.clear();
+
+        for &c in coords.iter() {
+            match self.cache.find_mut(&(c.x, c.y, c.z)) {
+                Some(chunk) => {
+                    chunk.touch();
+                }
+                None => {
                     self.needed_chunks.push(c);
                 }
             }
