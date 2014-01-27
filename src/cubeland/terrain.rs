@@ -122,13 +122,14 @@ impl Terrain {
                         blocktype = BlockWater;
                     }
 
-                    if blocktype != BlockAir && blocktype != BlockWater {
+                    if blocktype != BlockAir && blocktype != BlockWater && v.y > 1.0 {
+                        let caviness = (0.3 * (1.0 - v.y/256.0)).clamp(&0.0, &1.0);
                         let cave = perlin1.gen([
                             (p.x + block_x as f64) * 0.05,
                             (p.y + block_y as f64) * 0.1,
-                            (p.z + block_z as f64) * 0.05]);
+                            (p.z + block_z as f64) * 0.05]) * 0.5 + 0.5;
 
-                        if cave > 0.5 {
+                        if cave < caviness {
                             blocktype = BlockAir;
                         }
                     }
