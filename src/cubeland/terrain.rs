@@ -48,14 +48,14 @@ impl Block {
 }
 
 pub struct Terrain {
-    priv blocks: [[[Block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
+    priv blocks: [[[Block, ..CHUNK_SIZE+2], ..CHUNK_SIZE+2], ..CHUNK_SIZE+2],
 }
 
 impl Terrain {
     pub fn gen(seed: u32, p: Vec3<f64>) -> ~Terrain {
         let def_block = Block { blocktype: BlockAir };
         let mut t = ~Terrain {
-            blocks: [[[def_block, ..CHUNK_SIZE], ..CHUNK_SIZE], ..CHUNK_SIZE],
+            blocks: [[[def_block, ..CHUNK_SIZE+2], ..CHUNK_SIZE+2], ..CHUNK_SIZE+2],
         };
 
         let start_time = precise_time_ns();
@@ -65,8 +65,8 @@ impl Terrain {
         let perlin3 = Perlin::from_seed([seed as uint * 13]);
         let perlin4 = Perlin::from_seed([seed as uint * 17]);
 
-        for block_x in std::iter::range(0, CHUNK_SIZE) {
-            for block_z in std::iter::range(0, CHUNK_SIZE) {
+        for block_x in std::iter::range(-1, CHUNK_SIZE+1) {
+            for block_z in std::iter::range(-1, CHUNK_SIZE+1) {
                 let noise1 = perlin1.gen([
                     (p.x + block_x as f64) * 0.07,
                     (p.z + block_z as f64) * 0.04
@@ -147,15 +147,15 @@ impl Terrain {
     }
 
     pub fn get<'a>(&'a self, x: int, y: int, z: int) -> Option<&'a Block> {
-        if x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_SIZE || z < 0 || z >= CHUNK_SIZE {
+        if x < -1 || x >= CHUNK_SIZE+1 || y < -1 || y >= CHUNK_SIZE+1 || z < -1 || z >= CHUNK_SIZE+1 {
             None
         } else {
-            Some(&self.blocks[x][y][z])
+            Some(&self.blocks[x+1][y+1][z+1])
         }
     }
 
     pub fn get_mut<'a>(&'a mut self, x: int, y: int, z: int) -> &'a mut Block {
-        &mut self.blocks[x][y][z]
+        &mut self.blocks[x+1][y+1][z+1]
     }
 
 }
