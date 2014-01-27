@@ -21,6 +21,7 @@ use std::num::clamp;
 
 use extra::time::precise_time_ns;
 
+use cgmath::vector::Vector;
 use cgmath::vector::Vec3;
 
 use noise::Perlin;
