@@ -215,18 +215,19 @@ fn run_length(t : &Terrain,
               mut p: Vec3<int>,
               dp: Vec3<int>) -> int {
     let block = &t.get(p.x, p.y, p.z).unwrap();
+    let max_len = Vec3::new(CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE).sub_v(&p).dot(&dp);
+
     let mut len = 1;
 
-    loop {
+    while len < max_len {
         p.add_self_v(&dp);
+
         if unmeshed_faces.contains(p.x, p.y, p.z) {
-            match t.get(p.x, p.y, p.z) {
-                Some(b) if b.blocktype == block.blocktype => {
-                    len += 1;
-                }
-                _ => {
-                    break;
-                }
+            let b = t.get(p.x, p.y, p.z).unwrap();
+            if b.blocktype == block.blocktype {
+                len += 1;
+            } else {
+                break;
             }
         } else {
             break;
