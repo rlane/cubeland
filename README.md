@@ -13,11 +13,15 @@ Dependencies
 * [gl-rs](https://github.com/bjz/gl-rs)
 * [cgmath-rs](https://github.com/bjz/cgmath-rs)
 * [noise-rs](https://github.com/bjz/noise-rs)
-* Rust nightly (0.9-pre)
+* Rust 0.9
 
 
 Building
 ========
 
-`rustpkg build cubeland` should work in theory. Recent versions of glfw-rs are
-not compatible with rustpkg.
+`rustpkg build cubeland` should work in theory.
+
+Screenshots
+===========
+
+![Screenshot](https://raw.github.com/rlane/cubeland/master/doc/screenshot.png)
