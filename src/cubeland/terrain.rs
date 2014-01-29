@@ -21,6 +21,7 @@ use std::num::clamp;
 
 use extra::time::precise_time_ns;
 
+use cgmath::array::Array;
 use cgmath::vector::Vector;
 use cgmath::vector::Vec3;
 
@@ -123,11 +124,14 @@ impl Terrain {
                     }
 
                     if blocktype != BlockAir && blocktype != BlockWater && v.y > 1.0 {
-                        let caviness = (0.3 * (1.0 - v.y/256.0)).clamp(&0.0, &1.0);
-                        let cave = perlin1.gen([
-                            (p.x + block_x as f64) * 0.05,
-                            (p.y + block_y as f64) * 0.1,
-                            (p.z + block_z as f64) * 0.05]) * 0.5 + 0.5;
+                        let caviness = (0.5 - v.y.clamp(&30.0, &128.0) * 0.005);
+                        let warp_v = Vec3::new(v.x * 0.01, v.y * 0.01, v.z * 0.01);
+                        let warp = Vec3::new(
+                            perlin2.gen(warp_v.as_slice()),
+                            perlin3.gen(warp_v.as_slice()),
+                            perlin4.gen(warp_v.as_slice())).mul_s(2.0);
+                        let cave_v = v.mul_v(&Vec3::new(0.05, 0.08, 0.05)).add_v(&warp);
+                        let cave = perlin1.gen(cave_v.as_slice()) * 0.5 + 0.5;
 
                         if cave < caviness {
                             blocktype = BlockAir;
