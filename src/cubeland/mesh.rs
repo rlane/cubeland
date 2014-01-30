@@ -79,7 +79,7 @@ impl Mesh {
                     for z in std::iter::range(0, CHUNK_SIZE as int) {
                         let block = &t.get(x, y, z);
 
-                        if (block.blocktype == BlockAir) {
+                        if block.blocktype == BlockAir {
                             continue;
                         }
 

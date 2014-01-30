@@ -30,13 +30,10 @@ use extra::time::precise_time_ns;
 use gl::types::*;
 
 use cgmath::matrix::Matrix;
-use cgmath::matrix::ToMat4;
 use cgmath::vector::Vector;
 use cgmath::vector::Vec2;
 use cgmath::vector::Vec3;
-use cgmath::ptr::Ptr;
 
-use spiral::Spiral;
 use chunk::Chunk;
 use chunk::ChunkLoader;
 
@@ -49,7 +46,6 @@ mod offset_of;
 mod chunk;
 mod ratelimiter;
 mod texture;
-mod spiral;
 mod renderer;
 mod camera;
 mod terrain;
@@ -260,7 +256,7 @@ extern "C" {
 
 fn check_gl(message : &str) {
     let err = gl::GetError();
-    if (err != gl::NO_ERROR) {
+    if err != gl::NO_ERROR {
         unsafe {
             let err = std::str::raw::from_c_str(gluErrorString(err) as *i8);
             fail!("GL error {} at {}", err, message);

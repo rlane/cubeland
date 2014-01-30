@@ -17,7 +17,6 @@ extern mod cgmath;
 extern mod noise;
 
 use std;
-use std::num::clamp;
 
 use extra::time::precise_time_ns;
 
