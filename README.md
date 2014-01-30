@@ -23,7 +23,7 @@ The easiest way to get compatible versions of Rust and all the libraries this
 project uses is [rust-gamedev-kit][1]. Once the Rust compiler and libraries
 have been installed:
 
-  rustc --opt-level=3 src/cubeland/main.rs
+    rustc --opt-level=3 src/cubeland/main.rs
 
 This produces the executable `src/cubeland/main`.
 
