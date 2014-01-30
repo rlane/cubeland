@@ -152,7 +152,7 @@ impl Renderer {
             /* Calculate drop due to surface curvature */
             static planet_radius : f32 = 6371000.0f32 / 5000.0f32;
             let horiz_dist = (Vec3 { x: camera_position.x, y: 0.0f32, z: camera_position.z }).
-                sub_v(&chunk_pos).length();
+                sub_v(&Vec3::new(chunk_pos.x, 0.0f32, chunk_pos.z)).length();
             let adj_horiz_dist = (horiz_dist - 100f32).max(&0.0f32);
             let drop = planet_radius - (planet_radius.powf(&2.0f32) - adj_horiz_dist.powf(&2.0f32)).sqrt();
             chunk_pos.y -= drop;

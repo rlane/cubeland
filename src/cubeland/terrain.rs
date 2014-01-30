@@ -28,7 +28,6 @@ use cgmath::vector::Vec3;
 use noise::Perlin;
 
 use CHUNK_SIZE;
-use WORLD_HEIGHT;
 
 #[repr(u8)]
 #[deriving(Eq)]
@@ -61,8 +60,7 @@ impl Terrain {
             blocks: [[[def_block, ..CHUNK_SIZE+2], ..CHUNK_SIZE+2], ..CHUNK_SIZE+2],
         };
 
-        let water_height = 52.0;
-        let base_height = 64.0;
+        let water_height = -12.0;
         let base_variance = 10.0;
 
         let start_time = precise_time_ns();
@@ -91,15 +89,11 @@ impl Terrain {
                     (p.z + block_z as f64) * 0.001
                 ]);
 
-                let height = clamp(
-                    (
-                        base_height +
-                        noise4 * 10.0 +
-                        base_variance *
-                            (noise3 + 1.0).powf(&2.5) *
-                            noise1
-                    ),
-                    1.0, (CHUNK_SIZE * (WORLD_HEIGHT as int) - 1) as f64);
+                let height =
+                    noise4 * 10.0 +
+                    base_variance *
+                        (noise3 + 1.0).powf(&2.5) *
+                        noise1;
 
                 let dirt_height = 4.0 + noise2 * 8.0;
 
@@ -123,7 +117,7 @@ impl Terrain {
                         blocktype = BlockWater;
                     }
 
-                    if blocktype != BlockAir && blocktype != BlockWater && v.y > 1.0 {
+                    if blocktype != BlockAir && blocktype != BlockWater {
                         let caviness = (0.5 - v.y.clamp(&30.0, &128.0) * 0.005);
                         let warp_v = Vec3::new(v.x * 0.01, v.y * 0.01, v.z * 0.01);
                         let warp = Vec3::new(

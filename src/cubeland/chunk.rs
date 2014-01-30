@@ -28,13 +28,12 @@ use cgmath::vector::Vec3;
 
 use CHUNK_SIZE;
 use VISIBLE_RADIUS;
-use WORLD_HEIGHT;
 use terrain::Terrain;
 use mesh::Mesh;
 use ratelimiter::RateLimiter;
 
-static MAX_CHUNKS : uint = (VISIBLE_RADIUS*2)*(VISIBLE_RADIUS*2)*WORLD_HEIGHT*2;
-static MAX_INFLIGHT : uint = 32;
+static MAX_CHUNKS : uint = (VISIBLE_RADIUS*2)*(VISIBLE_RADIUS*2)*(VISIBLE_RADIUS*2)*2;
+static MAX_INFLIGHT : uint = 8;
 
 pub struct ChunkLoader {
     seed : u32,

@@ -55,8 +55,7 @@ mod camera;
 mod terrain;
 mod mesh;
 
-pub static VISIBLE_RADIUS: uint = 12;
-pub static WORLD_HEIGHT: uint = 4;
+pub static VISIBLE_RADIUS: uint = 8;
 pub static CHUNK_SIZE: int = 32;
 pub static WORLD_SEED: u32 = 42;
 
@@ -91,7 +90,7 @@ fn main() {
 
         let mut chunk_loader = ChunkLoader::new(WORLD_SEED);
 
-        let mut camera = camera::Camera::new(Vec3::new(0.0, 80.0, 40.0));
+        let mut camera = camera::Camera::new(Vec3::new(0.0, 20.0, 00.0));
 
         let (key_port, key_chan) = std::comm::Chan::new();
         window.set_key_callback(~KeyContext { chan: key_chan });
@@ -218,21 +217,26 @@ fn main() {
 }
 
 fn nearby_chunk_coords(p: Vec3<f64>) -> ~[Vec3<i64>] {
-    static num_chunks : uint = (VISIBLE_RADIUS * 2 + 1) * (VISIBLE_RADIUS * 2 + 1);
-    let cur_chunk_coord = Vec3::new(p.x as i64, 0, p.z as i64).div_s(CHUNK_SIZE as i64);
+    let cur_chunk_coord = Vec3::new(p.x as i64, p.y as i64, p.z as i64).div_s(CHUNK_SIZE as i64);
+    let r = VISIBLE_RADIUS as i64;
 
     let mut coords = ~[];
 
-    for v in Spiral::<i64>::new(num_chunks) {
-        if v.x*v.x + v.y*v.y > (VISIBLE_RADIUS*VISIBLE_RADIUS) as i64 {
-            continue;
+    for x in range(-r, r+1) {
+        for y in range(-r, r+1) {
+            for z in range(-r, r+1) {
+                let c = Vec3::new(x, y, z);
+                if c.dot(&c) < r*r {
+                    coords.push(c);
+                }
+            }
         }
+    }
 
-        let mut c = cur_chunk_coord.add_v(&Vec3::new(v.x, 0, v.y));
-        for y in range(0, WORLD_HEIGHT) {
-            c.y = y as i64;
-            coords.push(c);
-        }
+    coords.sort_by(|b,a| b.dot(b).cmp(&a.dot(a)));
+
+    for c in coords.mut_iter() {
+        c.add_self_v(&cur_chunk_coord);
     }
 
     coords
