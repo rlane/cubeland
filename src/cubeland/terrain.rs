@@ -96,7 +96,7 @@ impl Terrain {
                         base_height +
                         noise4 * 10.0 +
                         base_variance *
-                            std::num::pow(noise3 + 1.0, 2.5) *
+                            (noise3 + 1.0).powf(&2.5) *
                             noise1
                     ),
                     1.0, (CHUNK_SIZE * (WORLD_HEIGHT as int) - 1) as f64);

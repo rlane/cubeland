@@ -31,8 +31,9 @@ mod terrain;
 mod spiral;
 
 pub static N: uint = 4;
-pub static CHUNK_SIZE: uint = 32;
+pub static CHUNK_SIZE: int = 32;
 pub static WORLD_SEED: u32 = 42;
+pub static WORLD_HEIGHT: int = 4;
 
 fn main() {
     let mut spiral = Spiral::<f64>::new(N);

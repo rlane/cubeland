@@ -22,6 +22,7 @@ extern mod gl;
 extern mod cgmath;
 extern mod noise;
 
+use std::comm::{Data,Empty};
 use std::libc;
 
 use extra::time::precise_time_ns;
@@ -41,6 +42,7 @@ use chunk::ChunkLoader;
 
 #[cfg(target_os = "linux")]
 #[link(name="GLU")]
+#[link(name="glfw")]
 extern {}
 
 mod offset_of;
@@ -120,50 +122,50 @@ fn main() {
 
             loop {
                 match fb_size_port.try_recv() {
-                    Some((w,h)) => {
+                    Data((w,h)) => {
                         renderer.set_window_size(Vec2 { x: w, y: h });
                     }
-                    None => break
+                    _ => break
                 }
             }
 
             loop {
                 match key_port.try_recv() {
                     // Camera movement
-                    Some((glfw::Press, glfw::KeyW)) |
-                    Some((glfw::Release, glfw::KeyS)) => {
+                    Data((glfw::Press, glfw::KeyW)) |
+                    Data((glfw::Release, glfw::KeyS)) => {
                         camera.accelerate(Vec3::new(0.0, 0.0, -1.0));
                     },
-                    Some((glfw::Press, glfw::KeyS)) |
-                    Some((glfw::Release, glfw::KeyW)) => {
+                    Data((glfw::Press, glfw::KeyS)) |
+                    Data((glfw::Release, glfw::KeyW)) => {
                         camera.accelerate(Vec3::new(0.0, 0.0, 1.0));
                     },
-                    Some((glfw::Press, glfw::KeyA)) |
-                    Some((glfw::Release, glfw::KeyD)) => {
+                    Data((glfw::Press, glfw::KeyA)) |
+                    Data((glfw::Release, glfw::KeyD)) => {
                         camera.accelerate(Vec3::new(-1.0, 0.0, 0.0));
                     },
-                    Some((glfw::Press, glfw::KeyD)) |
-                    Some((glfw::Release, glfw::KeyA)) => {
+                    Data((glfw::Press, glfw::KeyD)) |
+                    Data((glfw::Release, glfw::KeyA)) => {
                         camera.accelerate(Vec3::new(1.0, 0.0, 0.0));
                     },
-                    Some((glfw::Press, glfw::KeyLeftControl)) |
-                    Some((glfw::Release, glfw::KeySpace)) => {
+                    Data((glfw::Press, glfw::KeyLeftControl)) |
+                    Data((glfw::Release, glfw::KeySpace)) => {
                         camera.accelerate(Vec3::new(0.0, -1.0, 0.0));
                     },
-                    Some((glfw::Press, glfw::KeySpace)) |
-                    Some((glfw::Release, glfw::KeyLeftControl)) => {
+                    Data((glfw::Press, glfw::KeySpace)) |
+                    Data((glfw::Release, glfw::KeyLeftControl)) => {
                         camera.accelerate(Vec3::new(0.0, 1.0, 0.0));
                     },
-                    Some((glfw::Press, glfw::KeyLeftShift)) => camera.fast(true),
-                    Some((glfw::Release, glfw::KeyLeftShift)) => camera.fast(false),
+                    Data((glfw::Press, glfw::KeyLeftShift)) => camera.fast(true),
+                    Data((glfw::Release, glfw::KeyLeftShift)) => camera.fast(false),
 
-                    Some((glfw::Press, glfw::KeyR)) => {
+                    Data((glfw::Press, glfw::KeyR)) => {
                         renderer.reload_resources();
                     },
-                    Some((glfw::Press, glfw::KeyEscape)) => {
+                    Data((glfw::Press, glfw::KeyEscape)) => {
                         window.set_should_close(true);
                     },
-                    Some((glfw::Press, glfw::KeyG)) => {
+                    Data((glfw::Press, glfw::KeyG)) => {
                         grabbed = !grabbed;
                         if grabbed {
                             window.set_cursor_mode(glfw::CursorDisabled);
@@ -171,10 +173,10 @@ fn main() {
                             window.set_cursor_mode(glfw::CursorNormal);
                         }
                     },
-                    Some((glfw::Press, glfw::KeyL)) => {
+                    Data((glfw::Press, glfw::KeyL)) => {
                         renderer.toggle_wireframe_mode();
                     },
-                    None => break,
+                    Empty => break,
                     _ => {}
                 }
             }

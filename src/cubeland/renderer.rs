@@ -154,7 +154,7 @@ impl Renderer {
             let horiz_dist = (Vec3 { x: camera_position.x, y: 0.0f32, z: camera_position.z }).
                 sub_v(&chunk_pos).length();
             let adj_horiz_dist = (horiz_dist - 100f32).max(&0.0f32);
-            let drop = planet_radius - (planet_radius.pow(&2.0f32) - adj_horiz_dist.pow(&2.0f32)).sqrt();
+            let drop = planet_radius - (planet_radius.powf(&2.0f32) - adj_horiz_dist.powf(&2.0f32)).sqrt();
             chunk_pos.y -= drop;
 
             if view_frustum_cull(&clip_transform, &chunk_pos.extend(0.0f32)) {
@@ -374,7 +374,7 @@ fn compile_shader(src: &[u8], ty: GLenum) -> Result<GLuint,~str> {
     unsafe {
         // Attempt to compile the shader
         let length = src.len() as GLint;
-        let ptr = src.unsafe_ref(0) as *i8;
+        let ptr = std::ptr::to_unsafe_ptr(src.unsafe_ref(0)) as *i8;
         gl::ShaderSource(shader, 1, &ptr, &length);
         gl::CompileShader(shader);
 

@@ -15,6 +15,7 @@
 extern mod extra;
 extern mod cgmath;
 
+use std::comm::Data;
 use std::hashmap::HashMap;
 use std::hashmap::HashSet;
 use std::rt::default_sched_threads;
@@ -106,7 +107,7 @@ impl ChunkLoader {
         for stream in self.streams.iter() {
             loop {
                 match stream.try_recv() {
-                    Some(mut chunk) => {
+                    Data(mut chunk) => {
                         let c = chunk.coord;
                         chunk.touch();
                         chunk.mesh.finish();
@@ -114,7 +115,7 @@ impl ChunkLoader {
                         self.inflight.remove(&(c.x, c.y, c.z));
                         self.load_rate_counter += 1;
                     },
-                    None => break,
+                    _ => break,
                 }
             }
         }
@@ -125,7 +126,7 @@ impl ChunkLoader {
         }
 
         while self.inflight.len() < MAX_INFLIGHT && !self.needed_chunks.is_empty() {
-            let c = self.needed_chunks.shift();
+            let c = self.needed_chunks.shift().unwrap();
             self.inflight.insert((c.x, c.y, c.z));
             let worker_index = (c.x, c.y, c.z).hash() as uint % self.streams.len();
             self.streams[worker_index].send(c);
