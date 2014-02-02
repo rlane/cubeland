@@ -219,18 +219,21 @@ impl Renderer {
     }
 
     fn bind_mesh(&self, mesh: &Mesh) {
-        unsafe {
-            gl::BindBuffer(gl::ARRAY_BUFFER, mesh.vertex_buffer);
-            gl::VertexAttribPointer(self.res.attr_position, 3, gl::FLOAT,
-                                    gl::FALSE as GLboolean,
-                                    std::mem::size_of::<mesh::VertexData>() as GLint,
-                                    ptr::null());
-            gl::VertexAttribPointer(self.res.attr_blocktype, 1, gl::FLOAT,
-                                    gl::FALSE as GLboolean,
-                                    std::mem::size_of::<mesh::VertexData>() as GLint,
-                                    std::cast::transmute(offset_of!(mesh::VertexData, blocktype)));
+        match (&mesh.vertex_buffer, &mesh.element_buffer) {
+            (&Some(ref vbo), &Some(ref ebo)) => unsafe {
+                vbo.activate();
+                gl::VertexAttribPointer(self.res.attr_position, 3, gl::FLOAT,
+                                        gl::FALSE as GLboolean,
+                                        std::mem::size_of::<mesh::VertexData>() as GLint,
+                                        ptr::null());
+                gl::VertexAttribPointer(self.res.attr_blocktype, 1, gl::FLOAT,
+                                        gl::FALSE as GLboolean,
+                                        std::mem::size_of::<mesh::VertexData>() as GLint,
+                                        std::cast::transmute(offset_of!(mesh::VertexData, blocktype)));
 
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, mesh.element_buffer);
+                ebo.activate();
+            },
+        _ => {}
         }
     }
 }

@@ -13,9 +13,9 @@
 // limitations under the License.
 
 extern mod gl;
+extern mod hgl;
 
 use std;
-use std::cast;
 
 use extra::time::precise_time_ns;
 use extra::bitv::BitvSet;
@@ -47,8 +47,8 @@ pub struct Face {
 }
 
 pub struct Mesh {
-    vertex_buffer: GLuint,
-    element_buffer: GLuint,
+    vertex_buffer: Option<hgl::Vbo>,
+    element_buffer: Option<hgl::Ebo>,
     vertices: ~[VertexData],
     elements: ~[GLuint],
     face_ranges: [(uint, uint), ..NUM_FACES],
@@ -149,8 +149,8 @@ impl Mesh {
                 vertices.len(), elements.len())
 
         ~Mesh {
-            vertex_buffer: 0,
-            element_buffer: 0,
+            vertex_buffer: None,
+            element_buffer: None,
             vertices: vertices,
             elements: elements,
             face_ranges: face_ranges,
@@ -159,36 +159,12 @@ impl Mesh {
 
     pub fn finish(&mut self) {
         if !self.elements.is_empty() {
-            unsafe {
-                // Create a Vertex Buffer Object and copy the vertex data to it
-                gl::GenBuffers(1, &mut self.vertex_buffer);
-                gl::BindBuffer(gl::ARRAY_BUFFER, self.vertex_buffer);
-                gl::BufferData(gl::ARRAY_BUFFER,
-                            (self.vertices.len() * std::mem::size_of::<VertexData>()) as GLsizeiptr,
-                            cast::transmute(&self.vertices[0]),
-                            gl::STATIC_DRAW);
-
-                // Create a Vertex Buffer Object and copy the element data to it
-                gl::GenBuffers(1, &mut self.element_buffer);
-                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.element_buffer);
-                gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
-                            (self.elements.len() * std::mem::size_of::<GLuint>()) as GLsizeiptr,
-                            cast::transmute(&self.elements[0]),
-                            gl::STATIC_DRAW);
-            }
+            self.vertex_buffer = Some(hgl::Vbo::from_data(self.vertices, hgl::StaticDraw).unwrap());
+            self.element_buffer = Some(hgl::Ebo::from_indices(self.elements));
         }
 
         self.vertices.clear();
         self.elements.clear();
-    }
-}
-
-impl Drop for Mesh {
-    fn drop(&mut self) {
-        unsafe {
-            gl::DeleteBuffers(1, &self.vertex_buffer);
-            gl::DeleteBuffers(1, &self.element_buffer);
-        }
     }
 }
 
