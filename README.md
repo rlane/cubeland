@@ -1,6 +1,8 @@
 cubeland
 ========
 
+![Build status](https://travis-ci.org/rlane/cubeland.png)
+
 Infinite procedural landscape. Not a game yet.
 
 Derived from [pong-rs](https://github.com/zokier/pong-rs).
