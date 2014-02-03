@@ -24,7 +24,7 @@ use extra::time::precise_time_ns;
 use cgmath::vector::Vector;
 use cgmath::vector::Vec3;
 
-use terrain::Terrain;
+use terrain::TerrainGenerator;
 
 mod terrain;
 
@@ -35,12 +35,13 @@ pub static WORLD_SEED: u32 = 42;
 
 fn main() {
     let mut times = ~[];
+    let terrain_generator = TerrainGenerator::new(WORLD_SEED);
 
     let camera_position = Vec3::new(0.0, 0.0, 0.0);
     for &c in nearby_chunk_coords(camera_position).iter() {
         let p = Vec3::new(c.x as f64, c.y as f64, c.z as f64).mul_s(CHUNK_SIZE as f64);
         let start_time = precise_time_ns();
-        Terrain::gen(WORLD_SEED, p);
+        terrain_generator.gen(p);
         let end_time = precise_time_ns();
         times.push((end_time - start_time)/1000);
     }

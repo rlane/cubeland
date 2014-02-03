@@ -45,12 +45,28 @@ impl Block {
     }
 }
 
+pub struct TerrainGenerator {
+    perlin1 : Perlin,
+    perlin2 : Perlin,
+    perlin3 : Perlin,
+    perlin4 : Perlin,
+}
+
 pub struct Terrain {
     priv blocks: [[[Block, ..CHUNK_SIZE+2], ..CHUNK_SIZE+2], ..CHUNK_SIZE+2],
 }
 
-impl Terrain {
-    pub fn gen(seed: u32, p: Vec3<f64>) -> ~Terrain {
+impl TerrainGenerator {
+    pub fn new(seed: u32) -> TerrainGenerator {
+        TerrainGenerator {
+            perlin1: Perlin::from_seed([seed as uint]),
+            perlin2: Perlin::from_seed([seed as uint * 7]),
+            perlin3: Perlin::from_seed([seed as uint * 13]),
+            perlin4: Perlin::from_seed([seed as uint * 17]),
+        }
+    }
+
+    pub fn gen(&self, p: Vec3<f64>) -> ~Terrain {
         let def_block = Block { blocktype: BlockAir };
         let mut t = ~Terrain {
             blocks: [[[def_block, ..CHUNK_SIZE+2], ..CHUNK_SIZE+2], ..CHUNK_SIZE+2],
@@ -59,26 +75,21 @@ impl Terrain {
         let water_height = -12.0;
         let base_variance = 10.0;
 
-        let perlin1 = Perlin::from_seed([seed as uint]);
-        let perlin2 = Perlin::from_seed([seed as uint * 7]);
-        let perlin3 = Perlin::from_seed([seed as uint * 13]);
-        let perlin4 = Perlin::from_seed([seed as uint * 17]);
-
         for block_x in std::iter::range(-1, CHUNK_SIZE+1) {
             for block_z in std::iter::range(-1, CHUNK_SIZE+1) {
-                let noise1 = perlin1.gen([
+                let noise1 = self.perlin1.gen([
                     (p.x + block_x as f64) * 0.07,
                     (p.z + block_z as f64) * 0.04
                 ]);
-                let noise2 = perlin2.gen([
+                let noise2 = self.perlin2.gen([
                     (p.x + block_x as f64) * 0.05,
                     (p.z + block_z as f64) * 0.05
                 ]);
-                let noise3 = perlin3.gen([
+                let noise3 = self.perlin3.gen([
                     (p.x + block_x as f64) * 0.005,
                     (p.z + block_z as f64) * 0.005
                 ]);
-                let noise4 = perlin4.gen([
+                let noise4 = self.perlin4.gen([
                     (p.x + block_x as f64) * 0.001,
                     (p.z + block_z as f64) * 0.001
                 ]);
@@ -115,11 +126,11 @@ impl Terrain {
                         let caviness = (0.5 - v.y.clamp(&30.0, &128.0) * 0.005);
                         let warp_v = Vec3::new(v.x * 0.01, v.y * 0.01, v.z * 0.01);
                         let warp = Vec3::new(
-                            perlin2.gen(warp_v.as_slice()),
-                            perlin3.gen(warp_v.as_slice()),
-                            perlin4.gen(warp_v.as_slice())).mul_s(2.0);
+                            self.perlin2.gen(warp_v.as_slice()),
+                            self.perlin3.gen(warp_v.as_slice()),
+                            self.perlin4.gen(warp_v.as_slice())).mul_s(2.0);
                         let cave_v = v.mul_v(&Vec3::new(0.05, 0.08, 0.05)).add_v(&warp);
-                        let cave = perlin1.gen(cave_v.as_slice()) * 0.5 + 0.5;
+                        let cave = self.perlin1.gen(cave_v.as_slice()) * 0.5 + 0.5;
 
                         if cave < caviness {
                             blocktype = BlockAir;
@@ -136,7 +147,9 @@ impl Terrain {
 
         return t;
     }
+}
 
+impl Terrain {
     pub fn get<'a>(&'a self, x: int, y: int, z: int) -> &'a Block {
         &self.blocks[x+1][y+1][z+1]
     }
@@ -144,5 +157,4 @@ impl Terrain {
     pub fn get_mut<'a>(&'a mut self, x: int, y: int, z: int) -> &'a mut Block {
         &mut self.blocks[x+1][y+1][z+1]
     }
-
 }

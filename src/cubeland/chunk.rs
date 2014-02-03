@@ -29,6 +29,7 @@ use cgmath::vector::Vec3;
 use CHUNK_SIZE;
 use VISIBLE_RADIUS;
 use terrain::Terrain;
+use terrain::TerrainGenerator;
 use mesh::Mesh;
 use ratelimiter::RateLimiter;
 
@@ -36,7 +37,6 @@ static MAX_CHUNKS : uint = (VISIBLE_RADIUS*2)*(VISIBLE_RADIUS*2)*(VISIBLE_RADIUS
 static MAX_INFLIGHT : uint = 8;
 
 pub struct ChunkLoader {
-    seed : u32,
     cache : HashMap<(i64, i64, i64), ~Chunk>,
     needed_chunks : ~[Vec3<i64>],
     inflight: HashSet<(i64, i64, i64)>,
@@ -55,7 +55,6 @@ impl ChunkLoader {
         println!("spawned {} workers", streams.len());
 
         ChunkLoader {
-            seed: seed,
             cache: HashMap::new(),
             needed_chunks: ~[],
             inflight: HashSet::new(),
@@ -65,13 +64,14 @@ impl ChunkLoader {
         }
     }
 
-    fn spawn_worker(seed : u32) -> DuplexStream<Vec3<i64>, ~Chunk> {
+    fn spawn_worker(seed: u32) -> DuplexStream<Vec3<i64>, ~Chunk> {
         let (loader_stream, worker_stream) = DuplexStream::new();
 
         spawn(proc() {
+            let terrain_generator = TerrainGenerator::new(seed);
             loop {
                 let coord : Vec3<i64> = worker_stream.recv();
-                worker_stream.send(chunk_gen(seed, coord));
+                worker_stream.send(chunk_gen(&terrain_generator, coord));
             }
         });
 
@@ -150,10 +150,10 @@ impl Chunk {
     }
 }
 
-pub fn chunk_gen(seed: u32, coord: Vec3<i64>) -> ~Chunk {
+pub fn chunk_gen(terrain_generator: &TerrainGenerator, coord: Vec3<i64>) -> ~Chunk {
     let p = Vec3::new(coord.x as f64, coord.y as f64, coord.z as f64).mul_s(CHUNK_SIZE as f64);
     let start_time = precise_time_ns();
-    let terrain = Terrain::gen(seed, p);
+    let terrain = terrain_generator.gen(p);
     let terrain_end_time = precise_time_ns();
     let mesh = Mesh::gen(terrain);
     let mesh_end_time = precise_time_ns();
