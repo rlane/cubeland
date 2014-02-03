@@ -68,13 +68,13 @@ impl ChunkLoader {
     fn spawn_worker(seed : u32) -> DuplexStream<Vec3<i64>, ~Chunk> {
         let (loader_stream, worker_stream) = DuplexStream::new();
 
-        do spawn {
+        spawn(proc() {
             loop {
                 let coord : Vec3<i64> = worker_stream.recv();
                 println!("loading chunk ({}, {}, {})", coord.x, coord.y, coord.z);
                 worker_stream.send(chunk_gen(seed, coord));
             }
-        }
+        });
 
         loader_stream
     }

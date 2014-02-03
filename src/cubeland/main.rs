@@ -59,15 +59,13 @@ static DEFAULT_WINDOW_SIZE : Vec2<u32> = Vec2 { x: 800, y: 600 };
 
 #[start]
 fn start(argc: int, argv: **u8) -> int {
-    do native::start(argc, argv) {
-        main();
-    }
+    native::start(argc, argv, main)
 }
 
 fn main() {
    glfw::set_error_callback(~ErrorContext);
 
-    do glfw::start {
+    glfw::start(proc() {
         glfw::window_hint::samples(8);
 
         let window = glfw::Window::create(
@@ -209,7 +207,7 @@ fn main() {
                 fps_frame_counter = 0;
             }
         }
-    }
+    });
 }
 
 fn nearby_chunk_coords(p: Vec3<f64>) -> ~[Vec3<i64>] {
