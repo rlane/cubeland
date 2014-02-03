@@ -17,7 +17,6 @@ extern mod hgl;
 
 use std;
 
-use extra::time::precise_time_ns;
 use extra::bitv::BitvSet;
 
 use gl::types::*;
@@ -56,8 +55,6 @@ pub struct Mesh {
 
 impl Mesh {
     pub fn gen(t: &Terrain) -> ~Mesh {
-        let start_time = precise_time_ns();
-
         let mut vertices : ~[VertexData] = ~[];
         let mut elements : ~[GLuint] = ~[];
 
@@ -141,12 +138,6 @@ impl Mesh {
 
             face_ranges[face.index] = (num_elements_start, elements.len() - num_elements_start);
         }
-
-        let end_time = precise_time_ns();
-
-        println!("mesh gen : {}us; vertices={}; elements={}",
-                (end_time - start_time)/1000,
-                vertices.len(), elements.len())
 
         ~Mesh {
             vertex_buffer: None,
