@@ -12,13 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern mod extra;
 extern mod cgmath;
 extern mod noise;
 
 use std;
-
-use extra::time::precise_time_ns;
 
 use cgmath::array::Array;
 use cgmath::vector::Vector;
@@ -61,8 +58,6 @@ impl Terrain {
 
         let water_height = -12.0;
         let base_variance = 10.0;
-
-        let start_time = precise_time_ns();
 
         let perlin1 = Perlin::from_seed([seed as uint]);
         let perlin2 = Perlin::from_seed([seed as uint * 7]);
@@ -138,11 +133,6 @@ impl Terrain {
                 }
             }
         }
-
-        let end_time = precise_time_ns();
-
-        println!("terrain gen : {}us",
-                (end_time - start_time)/1000);
 
         return t;
     }

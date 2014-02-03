@@ -71,7 +71,6 @@ impl ChunkLoader {
         spawn(proc() {
             loop {
                 let coord : Vec3<i64> = worker_stream.recv();
-                println!("loading chunk ({}, {}, {})", coord.x, coord.y, coord.z);
                 worker_stream.send(chunk_gen(seed, coord));
             }
         });
@@ -153,15 +152,22 @@ impl Chunk {
 
 pub fn chunk_gen(seed: u32, coord: Vec3<i64>) -> ~Chunk {
     let p = Vec3::new(coord.x as f64, coord.y as f64, coord.z as f64).mul_s(CHUNK_SIZE as f64);
-
+    let start_time = precise_time_ns();
     let terrain = Terrain::gen(seed, p);
-
+    let terrain_end_time = precise_time_ns();
     let mesh = Mesh::gen(terrain);
+    let mesh_end_time = precise_time_ns();
+
+    println!("loaded chunk ({}, {}, {}): terrain={}us mesh={}us size={}KB",
+             coord.x, coord.y, coord.z,
+             (terrain_end_time - start_time)/1000,
+             (mesh_end_time - terrain_end_time)/1000,
+             (mesh.vertices.len() * 16 + mesh.elements.len() * 4)/1000);
 
     return ~Chunk {
         coord: coord,
         terrain: terrain,
         mesh: mesh,
-        used_time: extra::time::precise_time_ns(),
+        used_time: precise_time_ns(),
     };
 }
