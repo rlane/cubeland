@@ -72,6 +72,27 @@ impl TerrainGenerator {
             blocks: [[[def_block, ..CHUNK_SIZE+2], ..CHUNK_SIZE+2], ..CHUNK_SIZE+2],
         };
 
+        static S : int = 4;
+
+        let mut density = [[[0.0, ..(CHUNK_SIZE/S)+3], ..(CHUNK_SIZE/S)+3], ..(CHUNK_SIZE/S)+3];
+        for density_x in std::iter::range(-1, CHUNK_SIZE/S+1) {
+            for density_y in std::iter::range(-1, CHUNK_SIZE/S+1) {
+                for density_z in std::iter::range(-1, CHUNK_SIZE/S+1) {
+                    let v = Vec3::new(p.x + (density_x * S) as f64,
+                                      p.y + (density_y * S) as f64,
+                                      p.z + (density_z * S) as f64);
+                    let warp_v = v.mul_v(&Vec3::new(0.02, 0.03, 0.02));
+                    let warp = Vec3::new(
+                        self.perlin2.gen(warp_v.as_slice()),
+                        self.perlin3.gen(warp_v.as_slice()),
+                        self.perlin4.gen(warp_v.as_slice())).mul_s(2.0);
+                    let v2 = v.mul_v(&Vec3::new(0.012, 0.020, 0.025)).add_v(&warp);
+                    density[density_x+1][density_y+1][density_z+1] =
+                        self.perlin1.gen(v2.as_slice()) * 0.5 + 0.5;
+                }
+            }
+        }
+
         let water_height = -12.0;
         let base_variance = 10.0;
 
@@ -123,16 +144,32 @@ impl TerrainGenerator {
                     }
 
                     if blocktype != BlockAir && blocktype != BlockWater {
-                        let caviness = (0.5 - v.y.clamp(&30.0, &128.0) * 0.005);
-                        let warp_v = Vec3::new(v.x * 0.01, v.y * 0.01, v.z * 0.01);
-                        let warp = Vec3::new(
-                            self.perlin2.gen(warp_v.as_slice()),
-                            self.perlin3.gen(warp_v.as_slice()),
-                            self.perlin4.gen(warp_v.as_slice())).mul_s(2.0);
-                        let cave_v = v.mul_v(&Vec3::new(0.05, 0.08, 0.05)).add_v(&warp);
-                        let cave = self.perlin1.gen(cave_v.as_slice()) * 0.5 + 0.5;
+                        /* Trilinear interpolation of lower-resolution density */
+                        let fx = (block_x as f64 / S as f64).fract();
+                        let fy = (block_y as f64 / S as f64).fract();
+                        let fz = (block_z as f64 / S as f64).fract();
+                        let x = (block_x+S)/S;
+                        let y = (block_y+S)/S;
+                        let z = (block_z+S)/S;
+                        let dxyz = density[x][y][z];
+                        let dxyZ = density[x][y][z+1];
+                        let dxYz = density[x][y+1][z];
+                        let dxYZ = density[x][y+1][z+1];
+                        let dXyz = density[x+1][y][z];
+                        let dXyZ = density[x+1][y][z+1];
+                        let dXYz = density[x+1][y+1][z];
+                        let dXYZ = density[x+1][y+1][z+1];
 
-                        if cave < caviness {
+                        let d = dxyz * (1.0-fx) * (1.0-fy) * (1.0-fz) +
+                                dxyZ * (1.0-fx) * (1.0-fy) * fz +
+                                dxYz * (1.0-fx) * fy * (1.0-fz) +
+                                dxYZ * (1.0-fx) * fy * fz +
+                                dXyz * fx * (1.0-fy) * (1.0-fz) +
+                                dXyZ * fx * (1.0-fy) * fz +
+                                dXYz * fx * fy * (1.0-fz) +
+                                dXYZ * fx * fy * fz;
+
+                        if d < 0.25 {
                             blocktype = BlockAir;
                         }
                     }
