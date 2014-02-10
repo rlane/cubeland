@@ -9,5 +9,5 @@ git submodule update
 popd
 
 export PKG_CONFIG_PATH=./rust-gamedev-kit/install/lib/pkgconfig
-rustc --link-args="`./rust-gamedev-kit/glfw-rs/build/etc/link-args`" -L ./rust-gamedev-kit/install/lib/rustlib/*/lib src/cubeland/main.rs
+rustc --link-args="`pkg-config --libs glfw3`" -L ./rust-gamedev-kit/install/lib/rustlib/*/lib src/cubeland/main.rs
 rustc -L ./rust-gamedev-kit/install/lib/rustlib/*/lib src/terrain-benchmark/main.rs
