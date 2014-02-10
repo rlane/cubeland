@@ -17,7 +17,7 @@ extern mod hgl;
 
 use std;
 
-use extra::bitv::BitvSet;
+use collections::bitv::BitvSet;
 
 use gl::types::*;
 

@@ -20,7 +20,7 @@ use std::hashmap::HashMap;
 use std::hashmap::HashSet;
 use std::rt::default_sched_threads;
 
-use extra::comm::DuplexStream;
+use sync::DuplexStream;
 use extra::time::precise_time_ns;
 
 use cgmath::vector::Vector;

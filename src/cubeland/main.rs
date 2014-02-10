@@ -17,13 +17,12 @@
 
 extern mod native;
 extern mod extra;
-extern mod glfw;
+extern mod collections;
+extern mod sync;
+extern mod glfw = "glfw-rs";
 extern mod gl;
 extern mod cgmath;
 extern mod noise;
-
-use std::comm::{Data,Empty};
-use std::libc;
 
 use extra::time::precise_time_ns;
 
@@ -74,6 +73,7 @@ fn main() {
             .expect("Failed to create GLFW window.");
 
         window.set_cursor_mode(glfw::CursorDisabled);
+        window.set_all_polling(true);
         window.make_context_current();
 
         gl::load_with(glfw::get_proc_address);
@@ -85,12 +85,6 @@ fn main() {
         let mut chunk_loader = ChunkLoader::new(WORLD_SEED);
 
         let mut camera = camera::Camera::new(Vec3::new(0.0, 20.0, 00.0));
-
-        let (key_port, key_chan) = std::comm::Chan::new();
-        window.set_key_callback(~KeyContext { chan: key_chan });
-
-        let (fb_size_port, fb_size_chan): (Port<(u32,u32)>, Chan<(u32,u32)>) = std::comm::Chan::new();
-        window.set_framebuffer_size_callback(~FramebufferSizeContext { chan: fb_size_chan });
 
         let mut fps_display_limiter = ratelimiter::RateLimiter::new(1000*1000*1000);
         let mut fps_frame_counter = 0;
@@ -112,65 +106,62 @@ fn main() {
 
         while !window.should_close() {
             glfw::poll_events();
+            for (_, event) in window.flush_events() {
+                match event {
+                    glfw::FramebufferSizeEvent(w, h) => {
+                        renderer.set_window_size(Vec2 { x: w as u32, y: h as u32 });
+                    },
+                    glfw::KeyEvent(key, _, action, _) => {
+                        match (action, key) {
+                            // Camera movement
+                            (glfw::Press, glfw::KeyW) |
+                            (glfw::Release, glfw::KeyS) => {
+                                camera.accelerate(Vec3::new(0.0, 0.0, -1.0));
+                            },
+                            (glfw::Press, glfw::KeyS) |
+                            (glfw::Release, glfw::KeyW) => {
+                                camera.accelerate(Vec3::new(0.0, 0.0, 1.0));
+                            },
+                            (glfw::Press, glfw::KeyA) |
+                            (glfw::Release, glfw::KeyD) => {
+                                camera.accelerate(Vec3::new(-1.0, 0.0, 0.0));
+                            },
+                            (glfw::Press, glfw::KeyD) |
+                            (glfw::Release, glfw::KeyA) => {
+                                camera.accelerate(Vec3::new(1.0, 0.0, 0.0));
+                            },
+                            (glfw::Press, glfw::KeyLeftControl) |
+                            (glfw::Release, glfw::KeySpace) => {
+                                camera.accelerate(Vec3::new(0.0, -1.0, 0.0));
+                            },
+                            (glfw::Press, glfw::KeySpace) |
+                            (glfw::Release, glfw::KeyLeftControl) => {
+                                camera.accelerate(Vec3::new(0.0, 1.0, 0.0));
+                            },
+                            (glfw::Press, glfw::KeyLeftShift) => camera.fast(true),
+                            (glfw::Release, glfw::KeyLeftShift) => camera.fast(false),
 
-            loop {
-                match fb_size_port.try_recv() {
-                    Data((w,h)) => {
-                        renderer.set_window_size(Vec2 { x: w, y: h });
-                    }
-                    _ => break
-                }
-            }
-
-            loop {
-                match key_port.try_recv() {
-                    // Camera movement
-                    Data((glfw::Press, glfw::KeyW)) |
-                    Data((glfw::Release, glfw::KeyS)) => {
-                        camera.accelerate(Vec3::new(0.0, 0.0, -1.0));
-                    },
-                    Data((glfw::Press, glfw::KeyS)) |
-                    Data((glfw::Release, glfw::KeyW)) => {
-                        camera.accelerate(Vec3::new(0.0, 0.0, 1.0));
-                    },
-                    Data((glfw::Press, glfw::KeyA)) |
-                    Data((glfw::Release, glfw::KeyD)) => {
-                        camera.accelerate(Vec3::new(-1.0, 0.0, 0.0));
-                    },
-                    Data((glfw::Press, glfw::KeyD)) |
-                    Data((glfw::Release, glfw::KeyA)) => {
-                        camera.accelerate(Vec3::new(1.0, 0.0, 0.0));
-                    },
-                    Data((glfw::Press, glfw::KeyLeftControl)) |
-                    Data((glfw::Release, glfw::KeySpace)) => {
-                        camera.accelerate(Vec3::new(0.0, -1.0, 0.0));
-                    },
-                    Data((glfw::Press, glfw::KeySpace)) |
-                    Data((glfw::Release, glfw::KeyLeftControl)) => {
-                        camera.accelerate(Vec3::new(0.0, 1.0, 0.0));
-                    },
-                    Data((glfw::Press, glfw::KeyLeftShift)) => camera.fast(true),
-                    Data((glfw::Release, glfw::KeyLeftShift)) => camera.fast(false),
-
-                    Data((glfw::Press, glfw::KeyR)) => {
-                        renderer.reload_resources();
-                    },
-                    Data((glfw::Press, glfw::KeyEscape)) => {
-                        window.set_should_close(true);
-                    },
-                    Data((glfw::Press, glfw::KeyG)) => {
-                        grabbed = !grabbed;
-                        if grabbed {
-                            window.set_cursor_mode(glfw::CursorDisabled);
-                        } else {
-                            window.set_cursor_mode(glfw::CursorNormal);
+                            (glfw::Press, glfw::KeyR) => {
+                                renderer.reload_resources();
+                            },
+                            (glfw::Press, glfw::KeyEscape) => {
+                                window.set_should_close(true);
+                            },
+                            (glfw::Press, glfw::KeyG) => {
+                                grabbed = !grabbed;
+                                if grabbed {
+                                    window.set_cursor_mode(glfw::CursorDisabled);
+                                } else {
+                                    window.set_cursor_mode(glfw::CursorNormal);
+                                }
+                            },
+                            (glfw::Press, glfw::KeyL) => {
+                                renderer.toggle_wireframe_mode();
+                            },
+                            _ => {},
                         }
                     },
-                    Data((glfw::Press, glfw::KeyL)) => {
-                        renderer.toggle_wireframe_mode();
-                    },
-                    Empty => break,
-                    _ => {}
+                    _ => {},
                 }
             }
 
@@ -266,23 +257,5 @@ struct ErrorContext;
 impl glfw::ErrorCallback for ErrorContext {
     fn call(&self, _: glfw::Error, description: ~str) {
         fail!("GLFW Error: {:s}", description);
-    }
-}
-
-struct KeyContext {
-    chan : Chan<(glfw::Action, glfw::Key)>,
-}
-impl glfw::KeyCallback for KeyContext {
-    fn call(&self, _: &glfw::Window, key: glfw::Key, _: libc::c_int, action: glfw::Action, _: glfw::Modifiers) {
-        self.chan.send((action, key));
-    }
-}
-
-struct FramebufferSizeContext {
-    chan: Chan<(u32,u32)>
-}
-impl glfw::FramebufferSizeCallback for FramebufferSizeContext {
-    fn call(&self, _: &glfw::Window, width: i32, height: i32) {
-        self.chan.send((width as u32,height as u32));
     }
 }
