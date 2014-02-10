@@ -13,7 +13,6 @@
 // limitations under the License.
 
 extern mod extra;
-extern mod glfw;
 extern mod gl;
 extern mod cgmath;
 extern mod noise;
