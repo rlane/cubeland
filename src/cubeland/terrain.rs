@@ -17,11 +17,11 @@ extern mod noise;
 
 use std;
 
-use cgmath::array::Array;
 use cgmath::vector::Vector;
 use cgmath::vector::Vec3;
 
-use noise::Perlin;
+use noise::sources::Perlin;
+use noise::Source;
 
 use CHUNK_SIZE;
 
@@ -59,10 +59,10 @@ pub struct Terrain {
 impl TerrainGenerator {
     pub fn new(seed: u32) -> TerrainGenerator {
         TerrainGenerator {
-            perlin1: Perlin::from_seed([seed as uint]),
-            perlin2: Perlin::from_seed([seed as uint * 7]),
-            perlin3: Perlin::from_seed([seed as uint * 13]),
-            perlin4: Perlin::from_seed([seed as uint * 17]),
+            perlin1: Perlin::new(),
+            perlin2: Perlin::new(),
+            perlin3: Perlin::new(),
+            perlin4: Perlin::new(),
         }
     }
 
@@ -83,12 +83,12 @@ impl TerrainGenerator {
                                       p.z + (density_z * S) as f64);
                     let warp_v = v.mul_v(&Vec3::new(0.02, 0.03, 0.02));
                     let warp = Vec3::new(
-                        self.perlin2.gen(warp_v.as_slice()),
-                        self.perlin3.gen(warp_v.as_slice()),
-                        self.perlin4.gen(warp_v.as_slice())).mul_s(2.0);
+                        self.perlin2.get(warp_v.x, warp_v.y, warp_v.z),
+                        self.perlin3.get(warp_v.x, warp_v.y, warp_v.z),
+                        self.perlin4.get(warp_v.x, warp_v.y, warp_v.z)).mul_s(2.0);
                     let v2 = v.mul_v(&Vec3::new(0.012, 0.020, 0.025)).add_v(&warp);
                     density[density_x+1][density_y+1][density_z+1] =
-                        self.perlin1.gen(v2.as_slice()) * 0.5 + 0.5;
+                        self.perlin1.get(v2.x, v2.y, v2.z) * 0.5 + 0.5;
                 }
             }
         }
@@ -98,22 +98,26 @@ impl TerrainGenerator {
 
         for block_x in std::iter::range(-1, CHUNK_SIZE+1) {
             for block_z in std::iter::range(-1, CHUNK_SIZE+1) {
-                let noise1 = self.perlin1.gen([
+                let noise1 = self.perlin1.get(
                     (p.x + block_x as f64) * 0.07,
-                    (p.z + block_z as f64) * 0.04
-                ]);
-                let noise2 = self.perlin2.gen([
+                    (p.z + block_z as f64) * 0.04,
+                    0.0
+                );
+                let noise2 = self.perlin2.get(
                     (p.x + block_x as f64) * 0.05,
-                    (p.z + block_z as f64) * 0.05
-                ]);
-                let noise3 = self.perlin3.gen([
+                    (p.z + block_z as f64) * 0.05,
+                    0.0
+                );
+                let noise3 = self.perlin3.get(
                     (p.x + block_x as f64) * 0.005,
-                    (p.z + block_z as f64) * 0.005
-                ]);
-                let noise4 = self.perlin4.gen([
+                    (p.z + block_z as f64) * 0.005,
+                    0.0
+                );
+                let noise4 = self.perlin4.get(
                     (p.x + block_x as f64) * 0.001,
-                    (p.z + block_z as f64) * 0.001
-                ]);
+                    (p.z + block_z as f64) * 0.001,
+                    0.0
+                );
 
                 let height =
                     noise4 * 10.0 +

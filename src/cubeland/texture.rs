@@ -21,21 +21,23 @@ use std::cast;
 
 use gl::types::*;
 
-use noise::Perlin;
+use noise::sources::Perlin;
+use noise::Source;
 
 pub fn make_noise_texture() -> GLuint {
     let start_time = extra::time::precise_time_ns();
 
     let mut pixels : ~[u8] = ~[];
     static length : i32 = 128;
-    let perlin = Perlin::from_seed([43 as uint]);
+    let perlin = Perlin::new();
 
     for x in range(0, length) {
         for y in range(0, length) {
-            let noise = perlin.gen([
+            let noise = perlin.get(
                 x as f64 * 0.6,
-                y as f64 * 0.6
-            ]);
+                y as f64 * 0.6,
+                0.0
+            );
             let x = ((noise * 0.3 + 0.4) * 255.0) as u8;
             pixels.push(x);
         }
