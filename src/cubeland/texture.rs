@@ -29,16 +29,19 @@ pub fn make_noise_texture() -> GLuint {
 
     let mut pixels : ~[u8] = ~[];
     static length : i32 = 128;
-    let perlin = Perlin::new();
+    let perlin = Perlin {
+        seed: 7,
+        octaves: 1,
+        frequency: 0.6,
+        lacunarity: 2.0,
+        persistence: 0.5,
+        quality: noise::Best,
+    };
 
     for x in range(0, length) {
         for y in range(0, length) {
-            let noise = perlin.get(
-                x as f64 * 0.6,
-                y as f64 * 0.6,
-                0.0
-            );
-            let x = ((noise * 0.3 + 0.4) * 255.0) as u8;
+            let noise = perlin.get(x as f64, y as f64, 0.0);
+            let x = ((noise * 0.5 + 0.5) * 255.0) as u8;
             pixels.push(x);
         }
     }

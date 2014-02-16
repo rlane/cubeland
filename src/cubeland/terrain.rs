@@ -46,10 +46,8 @@ impl Block {
 }
 
 pub struct TerrainGenerator {
-    perlin1 : Perlin,
-    perlin2 : Perlin,
-    perlin3 : Perlin,
-    perlin4 : Perlin,
+    density : Perlin,
+    height : Perlin,
 }
 
 pub struct Terrain {
@@ -59,10 +57,22 @@ pub struct Terrain {
 impl TerrainGenerator {
     pub fn new(seed: u32) -> TerrainGenerator {
         TerrainGenerator {
-            perlin1: Perlin::new(),
-            perlin2: Perlin::new(),
-            perlin3: Perlin::new(),
-            perlin4: Perlin::new(),
+            density: Perlin {
+                seed: seed as int,
+                octaves: 4,
+                frequency: 0.015,
+                lacunarity: 2.0,
+                persistence: 0.5,
+                quality: noise::Standard,
+            },
+            height: Perlin {
+                seed: seed as int * 71,
+                octaves: 8,
+                frequency: 0.001,
+                lacunarity: 2.0,
+                persistence: 0.5,
+                quality: noise::Best,
+            },
         }
     }
 
@@ -81,51 +91,21 @@ impl TerrainGenerator {
                     let v = Vec3::new(p.x + (density_x * S) as f64,
                                       p.y + (density_y * S) as f64,
                                       p.z + (density_z * S) as f64);
-                    let warp_v = v.mul_v(&Vec3::new(0.02, 0.03, 0.02));
-                    let warp = Vec3::new(
-                        self.perlin2.get(warp_v.x, warp_v.y, warp_v.z),
-                        self.perlin3.get(warp_v.x, warp_v.y, warp_v.z),
-                        self.perlin4.get(warp_v.x, warp_v.y, warp_v.z)).mul_s(2.0);
-                    let v2 = v.mul_v(&Vec3::new(0.012, 0.020, 0.025)).add_v(&warp);
                     density[density_x+1][density_y+1][density_z+1] =
-                        self.perlin1.get(v2.x, v2.y, v2.z) * 0.5 + 0.5;
+                        self.density.get(v.x, v.y, v.z);
                 }
             }
         }
 
         let water_height = -12.0;
-        let base_variance = 10.0;
+        let dirt_height = 4.0;
 
         for block_x in std::iter::range(-1, CHUNK_SIZE+1) {
             for block_z in std::iter::range(-1, CHUNK_SIZE+1) {
-                let noise1 = self.perlin1.get(
-                    (p.x + block_x as f64) * 0.07,
-                    (p.z + block_z as f64) * 0.04,
-                    0.0
-                );
-                let noise2 = self.perlin2.get(
-                    (p.x + block_x as f64) * 0.05,
-                    (p.z + block_z as f64) * 0.05,
-                    0.0
-                );
-                let noise3 = self.perlin3.get(
-                    (p.x + block_x as f64) * 0.005,
-                    (p.z + block_z as f64) * 0.005,
-                    0.0
-                );
-                let noise4 = self.perlin4.get(
-                    (p.x + block_x as f64) * 0.001,
-                    (p.z + block_z as f64) * 0.001,
-                    0.0
-                );
+                let x = p.x + block_x as f64;
+                let z = p.z + block_z as f64;
 
-                let height =
-                    noise4 * 10.0 +
-                    base_variance *
-                        (noise3 + 1.0).powf(&2.5) *
-                        noise1;
-
-                let dirt_height = 4.0 + noise2 * 8.0;
+                let height = self.height.get(x, 0.0, z) * 100.0;
 
                 for block_y in range(-1, CHUNK_SIZE+1) {
                     let mut blocktype = BlockAir;
@@ -173,7 +153,7 @@ impl TerrainGenerator {
                                 dXYz * fx * fy * (1.0-fz) +
                                 dXYZ * fx * fy * fz;
 
-                        if d < 0.25 {
+                        if d < -0.2 {
                             blocktype = BlockAir;
                         }
                     }
