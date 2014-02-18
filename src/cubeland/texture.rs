@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern mod extra;
-extern mod gl;
-extern mod cgmath;
-extern mod noise;
+extern crate extra;
+extern crate gl;
+extern crate cgmath;
+extern crate noise;
 
 use std::cast;
 

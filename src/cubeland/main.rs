@@ -15,14 +15,14 @@
 #[feature(globs)];
 #[feature(macro_rules)];
 
-extern mod native;
-extern mod extra;
-extern mod collections;
-extern mod sync;
-extern mod glfw = "glfw-rs";
-extern mod gl;
-extern mod cgmath;
-extern mod noise;
+extern crate native;
+extern crate extra;
+extern crate collections;
+extern crate sync;
+extern crate glfw = "glfw-rs";
+extern crate gl;
+extern crate cgmath;
+extern crate noise;
 
 use extra::time::precise_time_ns;
 

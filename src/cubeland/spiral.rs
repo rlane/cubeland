@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern mod cgmath;
+extern crate cgmath;
 
 use cgmath::vector::Vector;
 use cgmath::vector::Vec2;
