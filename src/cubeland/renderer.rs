@@ -376,7 +376,7 @@ fn compile_shader(src: &[u8], ty: GLenum) -> Result<GLuint,~str> {
     unsafe {
         // Attempt to compile the shader
         let length = src.len() as GLint;
-        let ptr = std::ptr::to_unsafe_ptr(src.unsafe_ref(0)) as *i8;
+        let ptr : *i8 = std::cast::transmute(src.unsafe_ref(0));
         gl::ShaderSource(shader, 1, &ptr, &length);
         gl::CompileShader(shader);
 

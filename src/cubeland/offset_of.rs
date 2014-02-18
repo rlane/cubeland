@@ -17,8 +17,9 @@
 macro_rules! offset_of(
     ($typename:ty, $fieldname:ident) => (
         {
-            let ptr = std::ptr::null::<$typename>();
-            std::ptr::to_unsafe_ptr(&(*ptr).$fieldname).to_uint() - ptr.to_uint()
+            let ptr = std::cast::transmute::<*$typename, &$typename>(std::ptr::null::<$typename>());
+            let offset : uint = std::cast::transmute(&ptr.$fieldname);
+            offset
         }
     );
 )
