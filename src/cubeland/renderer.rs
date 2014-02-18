@@ -19,6 +19,7 @@ extern crate cgmath;
 extern crate noise;
 
 use std;
+use std::cmp::max;
 use std::ptr;
 use std::str;
 use std::vec;
@@ -152,7 +153,7 @@ impl Renderer {
             static planet_radius : f32 = 6371000.0f32 / 5000.0f32;
             let horiz_dist = (Vec3 { x: camera_position.x, y: 0.0f32, z: camera_position.z }).
                 sub_v(&Vec3::new(chunk_pos.x, 0.0f32, chunk_pos.z)).length();
-            let adj_horiz_dist = (horiz_dist - 100f32).max(&0.0f32);
+            let adj_horiz_dist = max(horiz_dist - 100f32, 0.0f32);
             let drop = planet_radius - (planet_radius.powf(&2.0f32) - adj_horiz_dist.powf(&2.0f32)).sqrt();
             chunk_pos.y -= drop;
 
