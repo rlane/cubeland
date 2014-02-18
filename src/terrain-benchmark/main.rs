@@ -15,9 +15,9 @@
 #[feature(globs)];
 #[feature(macro_rules)];
 
-extern mod extra;
-extern mod cgmath;
-extern mod noise;
+extern crate extra;
+extern crate cgmath;
+extern crate noise;
 
 use extra::time::precise_time_ns;
 

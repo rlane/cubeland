@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern mod native;
-extern mod extra;
-extern mod gl;
-extern mod cgmath;
-extern mod noise;
+extern crate native;
+extern crate extra;
+extern crate gl;
+extern crate cgmath;
+extern crate noise;
 
 use std;
+use std::cmp::max;
 use std::ptr;
 use std::str;
 use std::vec;
@@ -152,7 +153,7 @@ impl Renderer {
             static planet_radius : f32 = 6371000.0f32 / 5000.0f32;
             let horiz_dist = (Vec3 { x: camera_position.x, y: 0.0f32, z: camera_position.z }).
                 sub_v(&Vec3::new(chunk_pos.x, 0.0f32, chunk_pos.z)).length();
-            let adj_horiz_dist = (horiz_dist - 100f32).max(&0.0f32);
+            let adj_horiz_dist = max(horiz_dist - 100f32, 0.0f32);
             let drop = planet_radius - (planet_radius.powf(&2.0f32) - adj_horiz_dist.powf(&2.0f32)).sqrt();
             chunk_pos.y -= drop;
 
@@ -376,7 +377,7 @@ fn compile_shader(src: &[u8], ty: GLenum) -> Result<GLuint,~str> {
     unsafe {
         // Attempt to compile the shader
         let length = src.len() as GLint;
-        let ptr = std::ptr::to_unsafe_ptr(src.unsafe_ref(0)) as *i8;
+        let ptr : *i8 = std::cast::transmute(src.unsafe_ref(0));
         gl::ShaderSource(shader, 1, &ptr, &length);
         gl::CompileShader(shader);
 

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern mod extra;
-extern mod cgmath;
+extern crate extra;
+extern crate cgmath;
 
 use std::comm::Data;
 use std::hashmap::HashMap;

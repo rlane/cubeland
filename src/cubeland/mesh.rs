@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern mod gl;
-extern mod hgl;
+extern crate gl;
+extern crate hgl;
 
 use std;
 
