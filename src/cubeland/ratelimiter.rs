@@ -14,7 +14,7 @@
 
 extern crate extra;
 
-use extra::time::precise_time_ns;
+use time::precise_time_ns;
 
 pub struct RateLimiter {
     next_time: u64,
