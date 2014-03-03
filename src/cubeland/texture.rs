@@ -18,6 +18,7 @@ extern crate cgmath;
 extern crate noise;
 
 use std::cast;
+use time::precise_time_ns;
 
 use gl::types::*;
 
@@ -25,7 +26,7 @@ use noise::sources::Perlin;
 use noise::Source;
 
 pub fn make_noise_texture() -> GLuint {
-    let start_time = extra::time::precise_time_ns();
+    let start_time = precise_time_ns();
 
     let mut pixels : ~[u8] = ~[];
     static length : i32 = 128;
@@ -69,7 +70,7 @@ pub fn make_noise_texture() -> GLuint {
 
     gl::BindTexture(gl::TEXTURE_2D, 0);
 
-    let end_time = extra::time::precise_time_ns();
+    let end_time = precise_time_ns();
     println!("texture gen: {}us", (end_time - start_time)/1000);
 
     tex

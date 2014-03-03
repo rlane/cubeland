@@ -19,12 +19,13 @@ extern crate native;
 extern crate extra;
 extern crate collections;
 extern crate sync;
+extern crate time;
 extern crate glfw = "glfw-rs";
 extern crate gl;
 extern crate cgmath;
 extern crate noise;
 
-use extra::time::precise_time_ns;
+use time::precise_time_ns;
 
 use gl::types::*;
 
@@ -89,7 +90,7 @@ fn main() {
         let mut fps_display_limiter = ratelimiter::RateLimiter::new(1000*1000*1000);
         let mut fps_frame_counter = 0;
 
-        let mut last_tick = extra::time::precise_time_ns();
+        let mut last_tick = precise_time_ns();
 
         let mut grabbed = true;
 
@@ -170,7 +171,7 @@ fn main() {
                 camera.look(Vec2 { x: cursor_x, y: cursor_y });
             }
 
-            let now = extra::time::precise_time_ns();
+            let now = precise_time_ns();
             let tick_length = (now - last_tick) as f64 / (1000.0 * 1000.0 * 1000.0);
             last_tick = now;
 

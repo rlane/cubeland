@@ -16,12 +16,13 @@ extern crate extra;
 extern crate cgmath;
 
 use std::comm::Data;
-use std::hashmap::HashMap;
-use std::hashmap::HashSet;
 use std::rt::default_sched_threads;
+use std::hash::sip::hash;
+use collections::HashMap;
+use collections::HashSet;
 
 use sync::DuplexStream;
-use extra::time::precise_time_ns;
+use time::precise_time_ns;
 
 use cgmath::vector::Vector;
 use cgmath::vector::Vec3;
@@ -126,7 +127,7 @@ impl ChunkLoader {
         while self.inflight.len() < MAX_INFLIGHT && !self.needed_chunks.is_empty() {
             let c = self.needed_chunks.shift().unwrap();
             self.inflight.insert((c.x, c.y, c.z));
-            let worker_index = (c.x, c.y, c.z).hash() as uint % self.streams.len();
+            let worker_index = hash(&(c.x, c.y, c.z)) as uint % self.streams.len();
             self.streams[worker_index].send(c);
         }
 
@@ -146,7 +147,7 @@ pub struct Chunk {
 
 impl Chunk {
     pub fn touch(&mut self) {
-        self.used_time = extra::time::precise_time_ns();
+        self.used_time = precise_time_ns();
     }
 }
 
