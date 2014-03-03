@@ -16,10 +16,11 @@
 #[feature(macro_rules)];
 
 extern crate extra;
+extern crate time;
 extern crate cgmath;
 extern crate noise;
 
-use extra::time::precise_time_ns;
+use time::precise_time_ns;
 
 use cgmath::vector::Vector;
 use cgmath::vector::Vec3;
