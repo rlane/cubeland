@@ -221,7 +221,7 @@ impl Renderer {
     fn bind_mesh(&self, mesh: &Mesh) {
         match (&mesh.vertex_buffer, &mesh.element_buffer) {
             (&Some(ref vbo), &Some(ref ebo)) => unsafe {
-                vbo.activate();
+                vbo.bind();
                 gl::VertexAttribPointer(self.res.attr_position, 3, gl::FLOAT,
                                         gl::FALSE as GLboolean,
                                         std::mem::size_of::<mesh::VertexData>() as GLint,
@@ -231,7 +231,7 @@ impl Renderer {
                                         std::mem::size_of::<mesh::VertexData>() as GLint,
                                         std::cast::transmute(offset_of!(mesh::VertexData, blocktype)));
 
-                ebo.activate();
+                ebo.bind();
             },
         _ => {}
         }

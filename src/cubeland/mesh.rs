@@ -150,7 +150,7 @@ impl Mesh {
 
     pub fn finish(&mut self) {
         if !self.elements.is_empty() {
-            self.vertex_buffer = Some(hgl::Vbo::from_data(self.vertices, hgl::StaticDraw).unwrap());
+            self.vertex_buffer = Some(hgl::Vbo::from_data(self.vertices, hgl::StaticDraw));
             self.element_buffer = Some(hgl::Ebo::from_indices(self.elements));
         }
 
