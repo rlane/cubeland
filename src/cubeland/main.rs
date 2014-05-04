@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[feature(globs)];
-#[feature(macro_rules)];
+#![feature(globs)]
+#![feature(macro_rules)]
 
 extern crate native;
-extern crate extra;
 extern crate collections;
 extern crate sync;
 extern crate time;
-extern crate glfw = "glfw-rs";
+extern crate glfw;
 extern crate gl;
 extern crate cgmath;
 extern crate noise;
@@ -28,6 +27,8 @@ extern crate noise;
 use time::precise_time_ns;
 
 use gl::types::*;
+
+use glfw::Context;
 
 use cgmath::matrix::Matrix;
 use cgmath::vector::Vector;
@@ -63,23 +64,24 @@ fn start(argc: int, argv: **u8) -> int {
 }
 
 fn main() {
-   glfw::set_error_callback(~ErrorContext);
+   let (glfw, errors) = glfw::init().unwrap();
+   glfw::fail_on_error(&errors);
 
-    glfw::start(proc() {
-        glfw::window_hint::samples(8);
+   if true {
+        glfw.window_hint(glfw::Samples(8));
 
-        let window = glfw::Window::create(
+        let (window, events) = glfw.create_window(
             DEFAULT_WINDOW_SIZE.x, DEFAULT_WINDOW_SIZE.y,
             "Cubeland", glfw::Windowed)
             .expect("Failed to create GLFW window.");
 
         window.set_cursor_mode(glfw::CursorDisabled);
         window.set_all_polling(true);
-        window.make_context_current();
+        window.make_current();
 
-        gl::load_with(glfw::get_proc_address);
+        gl::load_with(|x| glfw.get_proc_address(x));
 
-        glfw::set_swap_interval(1);
+        glfw.set_swap_interval(1);
 
         let mut renderer = renderer::Renderer::new(DEFAULT_WINDOW_SIZE);
 
@@ -106,8 +108,9 @@ fn main() {
         }
 
         while !window.should_close() {
-            glfw::poll_events();
-            for (_, event) in window.flush_events() {
+            glfw.poll_events();
+            glfw::fail_on_error(&errors);
+            for (_, event) in glfw::flush_messages(&events) {
                 match event {
                     glfw::FramebufferSizeEvent(w, h) => {
                         renderer.set_window_size(Vec2 { x: w as u32, y: h as u32 });
@@ -199,7 +202,7 @@ fn main() {
                 fps_frame_counter = 0;
             }
         }
-    });
+    }
 }
 
 fn nearby_chunk_coords(p: Vec3<f64>) -> ~[Vec3<i64>] {
@@ -232,7 +235,7 @@ fn find_nearby_chunks<'a>(chunk_loader: &'a ChunkLoader, p: Vec3<f64>) -> ~[&'a 
     let coords = nearby_chunk_coords(p);
     coords.iter().
         filter_map(|&c| chunk_loader.get(c)).
-        to_owned_vec()
+        collect()
 }
 
 fn request_nearby_chunks(chunk_loader: &mut ChunkLoader, p: Vec3<f64>) {
@@ -251,12 +254,5 @@ fn check_gl(message : &str) {
             let err = std::str::raw::from_c_str(gluErrorString(err) as *i8);
             fail!("GL error {} at {}", err, message);
         }
-    }
-}
-
-struct ErrorContext;
-impl glfw::ErrorCallback for ErrorContext {
-    fn call(&self, _: glfw::Error, description: ~str) {
-        fail!("GLFW Error: {:s}", description);
     }
 }

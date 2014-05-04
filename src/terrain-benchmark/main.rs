@@ -15,7 +15,6 @@
 #[feature(globs)];
 #[feature(macro_rules)];
 
-extern crate extra;
 extern crate time;
 extern crate cgmath;
 extern crate noise;
