@@ -13,13 +13,11 @@
 // limitations under the License.
 
 extern crate native;
-extern crate extra;
 extern crate gl;
 extern crate cgmath;
 extern crate noise;
 
 use std;
-use std::cmp::max;
 use std::ptr;
 use std::str;
 use std::vec;
@@ -153,7 +151,7 @@ impl Renderer {
             static planet_radius : f32 = 6371000.0f32 / 5000.0f32;
             let horiz_dist = (Vec3 { x: camera_position.x, y: 0.0f32, z: camera_position.z }).
                 sub_v(&Vec3::new(chunk_pos.x, 0.0f32, chunk_pos.z)).length();
-            let adj_horiz_dist = max(horiz_dist - 100f32, 0.0f32);
+            let adj_horiz_dist = (horiz_dist - 100f32).max(0.0f32);
             let drop = planet_radius - (planet_radius.powf(&2.0f32) - adj_horiz_dist.powf(&2.0f32)).sqrt();
             chunk_pos.y -= drop;
 
@@ -329,7 +327,7 @@ fn view_frustum_cull(m : &Mat4<f32>, p: &Vec4<f32>) -> bool {
         Vec4 { x: 0.0, y: L,   z: 0.0, w: 1.0 }, /* back top left */
     ];
 
-    let clip_vertices = vertices.map(|v| m.mul_v(&p.add_v(v)));
+    let clip_vertices: ~[Vec4<f32>] = vertices.iter().map(|v| m.mul_v(&p.add_v(v))).collect();
 
     if clip_vertices.iter().all(|v| v.x < -v.w) {
         return true;
@@ -389,9 +387,9 @@ fn compile_shader(src: &[u8], ty: GLenum) -> Result<GLuint,~str> {
         if status != (gl::TRUE as GLint) {
             let mut len = 0;
             gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut len);
-            let mut buf = vec::from_elem(len as uint - 1, 0u8);     // subtract 1 to skip the trailing null character
+            let mut buf = vec::Vec::from_elem(len as uint - 1, 0u8);     // subtract 1 to skip the trailing null character
             gl::GetShaderInfoLog(shader, len, ptr::mut_null(), buf.as_mut_ptr() as *mut GLchar);
-            return Err(str::raw::from_utf8(buf).to_owned());
+            return Err(str::raw::from_utf8(buf.slice_from(0)).to_owned());
         }
     }
     Ok(shader)
@@ -411,9 +409,9 @@ fn link_program(vs: GLuint, fs: GLuint) -> Result<GLuint, ~str> {
         if status != (gl::TRUE as GLint) {
             let mut len: GLint = 0;
             gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut len);
-            let mut buf = vec::from_elem(len as uint - 1, 0u8);     // subtract 1 to skip the trailing null character
+            let mut buf = vec::Vec::from_elem(len as uint - 1, 0u8);     // subtract 1 to skip the trailing null character
             gl::GetProgramInfoLog(program, len, ptr::mut_null(), buf.as_mut_ptr() as *mut GLchar);
-            return Err(str::raw::from_utf8(buf).to_owned());
+            return Err(str::raw::from_utf8(buf.slice_from(0)).to_owned());
         }
     }
     Ok(program)

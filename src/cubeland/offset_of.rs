@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[macro_escape];
+#![macro_escape]
 
 macro_rules! offset_of(
     ($typename:ty, $fieldname:ident) => (

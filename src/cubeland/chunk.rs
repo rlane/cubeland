@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate extra;
 extern crate cgmath;
 
 use std::comm::Data;
@@ -22,6 +21,7 @@ use collections::HashMap;
 use collections::HashSet;
 
 use sync::DuplexStream;
+use sync::duplex;
 use time::precise_time_ns;
 
 use cgmath::vector::Vector;
@@ -48,10 +48,11 @@ pub struct ChunkLoader {
 
 impl ChunkLoader {
     pub fn new(seed : u32) -> ChunkLoader {
-        let streams =
+        let mut streams_iter =
             range(0, default_sched_threads()).
-            map(|_| ChunkLoader::spawn_worker(seed)).
-            to_owned_vec();
+            map(|_| ChunkLoader::spawn_worker(seed));
+
+        let streams : ~[DuplexStream<Vec3<i64>, ~Chunk>] = streams_iter.collect();
 
         println!("spawned {} workers", streams.len());
 
@@ -66,7 +67,7 @@ impl ChunkLoader {
     }
 
     fn spawn_worker(seed: u32) -> DuplexStream<Vec3<i64>, ~Chunk> {
-        let (loader_stream, worker_stream) = DuplexStream::new();
+        let (loader_stream, worker_stream) = duplex();
 
         spawn(proc() {
             let terrain_generator = TerrainGenerator::new(seed);

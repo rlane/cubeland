@@ -15,7 +15,7 @@ Dependencies
 * [gl-rs](https://github.com/bjz/gl-rs)
 * [cgmath-rs](https://github.com/bjz/cgmath-rs)
 * [noise-rs](https://github.com/bjz/noise-rs)
-* Rust 0.10-pre
+* Rust 0.10
 
 
 Building

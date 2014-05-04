@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate extra;
-
 use time::precise_time_ns;
 
 pub struct RateLimiter {
